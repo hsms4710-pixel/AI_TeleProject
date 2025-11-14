@@ -213,7 +213,16 @@ def create_interface():
                 
                 quick_train_btn.click(
                     fn=manager.train_model,
-                    inputs=[gr.Slider(value=50, visible=False), gr.Slider(value=32, visible=False), gr.Slider(value=1e-4, visible=False)],
+                    inputs=[
+                        gr.Number(value=512, visible=False),  # hidden_size
+                        gr.Number(value=8, visible=False),    # num_layers
+                        gr.Number(value=8, visible=False),    # num_heads
+                        gr.Number(value=2048, visible=False), # intermediate_size
+                        gr.Number(value=4096, visible=False), # max_position
+                        gr.Number(value=50, visible=False),   # epochs
+                        gr.Number(value=32, visible=False),   # batch_size
+                        gr.Number(value=1e-4, visible=False)  # learning_rate
+                    ],
                     outputs=quick_status
                 )
                 
