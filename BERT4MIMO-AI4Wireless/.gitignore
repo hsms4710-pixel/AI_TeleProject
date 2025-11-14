@@ -1,0 +1,57 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+.pytest_cache/
+coverage.xml
+
+# Jupyter
+.ipynb_checkpoints
+
+# VSCode
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# PyTorch / ML artifacts
+*.pt
+*.pth
+checkpoints/
+runs/
+logs/
+tensorboard/
+
+# Generated data (large binary files)
+data/generated/*.npy
+data/generated/*.npz
+data/generated/*.mat
+data/generated/matlab_dataset.mat
+
+# MATLAB generated data files (large)
+foundation_model_data/*.mat
+
+# Keep metadata JSON in repo (do not ignore *.json in data/generated)
