@@ -15,14 +15,38 @@
 **使用**：
 ```python
 from model import CSIBERT
-model = CSIBERT(feature_dim=1024, hidden_size=256)
+
+# 轻量化配置
+model = CSIBERT(
+    feature_dim=1024, 
+    hidden_size=256, 
+    num_hidden_layers=4
+)
+
+# 标准配置（推荐）
+model = CSIBERT(
+    feature_dim=1024, 
+    hidden_size=512, 
+    num_hidden_layers=8
+)
+
+# 原始配置
+model = CSIBERT(
+    feature_dim=1024, 
+    hidden_size=768, 
+    num_hidden_layers=12
+)
 ```
 
-**核心参数**：
-- `feature_dim`：输入特征维度 (默认 1024)
-- `hidden_size`：隐层维度 (默认 256)
-- `num_hidden_layers`：Transformer 层数 (默认 4)
-- `num_attention_heads`：注意力头数 (默认 4)
+**核心参数对比**：
+
+| 参数 | 轻量化 ⚡ | 标准 ⭐ | 原始 🚀 | 说明 |
+|------|---------|--------|--------|------|
+| `hidden_size` | 256 | 512 | 768 | 隐层维度 |
+| `num_hidden_layers` | 4 | 8 | 12 | Transformer层数 |
+| `num_attention_heads` | 4 | 8 | 12 | 注意力头数 |
+| `intermediate_size` | 1024 | 2048 | 3072 | FFN隐层维度 |
+| `max_position_embeddings` | 2048 | 4096 | 4096 | 最大序列长度 |
 
 ---
 
@@ -43,10 +67,39 @@ model = CSIBERT(feature_dim=1024, hidden_size=256)
 - 支持检查点保存
 - 支持命令行参数配置
 
-**使用方式**：
+**三级配置使用**：
+
 ```bash
-python train.py --batch_size 32 --max_epochs 200
+# 轻量化配置（快速测试）
+python train.py \
+    --hidden_size 256 \
+    --num_layers 4 \
+    --batch_size 16 \
+    --max_epochs 10
+
+# 标准配置（推荐，平衡）
+python train.py \
+    --hidden_size 512 \
+    --num_layers 8 \
+    --batch_size 32 \
+    --max_epochs 50
+
+# 原始配置（高精度）
+python train.py \
+    --hidden_size 768 \
+    --num_layers 12 \
+    --batch_size 64 \
+    --max_epochs 200
 ```
+
+**训练参数对比**：
+
+| 参数 | 轻量化 ⚡ | 标准 ⭐ | 原始 🚀 |
+|------|---------|--------|--------|
+| `batch_size` | 16 | 32 | 64 |
+| `max_epochs` | 10 | 50 | 200 |
+| `learning_rate` | 1e-4 | 1e-4 | 1e-4 |
+| `early_stopping_patience` | 5 | 10 | 200 |
 
 **输出**：
 - 训练日志
