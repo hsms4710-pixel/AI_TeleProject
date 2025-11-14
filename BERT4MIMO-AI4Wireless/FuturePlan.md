@@ -4,7 +4,7 @@
 
 ---
 
-## 🎯 短期增强（1-2周）
+##  短期增强（1-2周）
 
 ### 1. 实时CSI预测系统
 
@@ -96,7 +96,7 @@
 
 ---
 
-## 🚀 中期扩展（1-3个月）
+##  中期扩展（1-3个月）
 
 ### 4. 多模态信道感知
 
@@ -244,7 +244,7 @@ federated_learning/
 
 ---
 
-## 🌟 长期研究（3-6个月）
+##  长期研究（3-6个月）
 
 ### 7. AI原生空口设计
 
@@ -407,7 +407,7 @@ constraints: 功率、QoS
 
 ---
 
-## 💡 推荐实施路线图
+##  推荐实施路线图
 
 ### 阶段1：快速验证（1-2周）
 
@@ -590,7 +590,7 @@ total_loss = α₁·L_prediction + α₂·L_estimation +
 
 ---
 
-## 🛠️ 具体实施建议
+##  具体实施建议
 
 ### 立即可做（基于现有代码）
 
@@ -599,7 +599,7 @@ total_loss = α₁·L_prediction + α₂·L_estimation +
 **新增标签页**：
 ```python
 # webui/app.py
-with gr.TabItem("📊 模型对比"):
+with gr.TabItem(" 模型对比"):
     # 功能1：加载多个模型
     model_selector = gr.CheckboxGroup(
         choices=available_models,
@@ -765,7 +765,7 @@ async def batch_predict(file: UploadFile = File(...)):
 
 ---
 
-## 📚 学习资源推荐
+##  学习资源推荐
 
 ### 论文追踪
 
@@ -927,7 +927,7 @@ optimizer = hvd.DistributedOptimizer(optimizer)
 
 ---
 
-## 🎁 快速启动建议
+##  快速启动建议
 
 ### MVP（最小可行产品）- 一周计划
 
@@ -1003,7 +1003,7 @@ optimizer = hvd.DistributedOptimizer(optimizer)
 
 ---
 
-## 🎯 深入方向选择指南
+##  深入方向选择指南
 
 ### 如果偏向工程实现
 
@@ -1124,7 +1124,7 @@ optimizer = hvd.DistributedOptimizer(optimizer)
 
 ---
 
-## 📊 成功指标
+##  成功指标
 
 ### 技术指标
 - **性能**：NMSE < -20dB
@@ -1150,7 +1150,7 @@ optimizer = hvd.DistributedOptimizer(optimizer)
 
 ---
 
-## 🤝 合作与开源
+##  合作与开源
 
 ### 开源策略
 - **MIT License**：鼓励商业使用
@@ -1172,7 +1172,7 @@ optimizer = hvd.DistributedOptimizer(optimizer)
 
 ---
 
-## 📞 联系与反馈
+##  联系与反馈
 
 ### 项目信息
 - **GitHub**: https://github.com/hsms4710-pixel/AI_TeleProject
@@ -1193,7 +1193,7 @@ optimizer = hvd.DistributedOptimizer(optimizer)
 
 ---
 
-## 🔄 更新日志
+##  更新日志
 
 ### v2.0.0 (计划中)
 - [ ] 实时预测系统

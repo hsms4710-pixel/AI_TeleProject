@@ -659,7 +659,7 @@ class CSIBERTValidator:
         with open('validation_results/validation_report.json', 'w', encoding='utf-8') as f:
             json.dump(report_converted, f, indent=2, ensure_ascii=False)
         
-        print("\n✅ 验证报告已保存: validation_results/validation_report.json")
+        print("\n 验证报告已保存: validation_results/validation_report.json")
         
         # 生成Markdown报告
         self._generate_markdown_report(report)
@@ -677,7 +677,7 @@ class CSIBERTValidator:
 
 ---
 
-## 📊 测试结果汇总
+##  测试结果汇总
 
 ### 1. 重构误差
 
@@ -733,13 +733,13 @@ class CSIBERTValidator:
         
         md_content += """---
 
-## 💡 性能评估总结
+##  性能评估总结
 
 ### 优势
-- ✅ 重构误差低，模型学习效果好
-- ✅ 预测能力强，能够准确预测未来CSI
-- ✅ 噪声鲁棒性良好
-- ✅ 高压缩率下仍保持良好性能
+-  重构误差低，模型学习效果好
+-  预测能力强，能够准确预测未来CSI
+-  噪声鲁棒性良好
+-  高压缩率下仍保持良好性能
 
 ### 建议
 - 📌 可以应用于实际波束管理系统
@@ -754,7 +754,7 @@ class CSIBERTValidator:
         with open('validation_results/VALIDATION_REPORT.md', 'w', encoding='utf-8') as f:
             f.write(md_content)
         
-        print("✅ Markdown报告已保存: validation_results/VALIDATION_REPORT.md")
+        print(" Markdown报告已保存: validation_results/VALIDATION_REPORT.md")
     
     def run_all_tests(self):
         """运行所有验证测试"""
@@ -781,7 +781,7 @@ class CSIBERTValidator:
         self.generate_report()
         
         print(f"\n{'#'*60}")
-        print("✅ 所有验证测试完成！")
+        print(" 所有验证测试完成！")
         print(f"{'#'*60}")
         print("\n结果保存在 validation_results/ 目录")
         print("  - validation_report.json (JSON格式)")

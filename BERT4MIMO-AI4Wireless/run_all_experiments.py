@@ -19,7 +19,7 @@ from model import CSIBERT
 
 def load_and_preprocess_data(data_path):
     """加载和预处理 CSI 数据"""
-    print(f"📂 加载数据: {data_path}")
+    print(f" 加载数据: {data_path}")
     
     cell_data = scipy.io.loadmat(data_path)['multi_cell_csi']
     
@@ -56,13 +56,13 @@ def load_and_preprocess_data(data_path):
         padded_data[i, :seq_len, :] = sequence
         attention_masks[i, :seq_len] = 1
     
-    print(f"✅ 数据形状: {padded_data.shape}")
+    print(f" 数据形状: {padded_data.shape}")
     return padded_data, attention_masks, feature_dim
 
 
 def load_model(model_path, feature_dim, device):
     """加载训练好的模型"""
-    print(f"🤖 加载模型: {model_path}")
+    print(f" 加载模型: {model_path}")
     
     checkpoint = torch.load(model_path, map_location=device)
     
@@ -81,7 +81,7 @@ def load_model(model_path, feature_dim, device):
     model.to(device)
     model.eval()
     
-    print(f"✅ 模型加载成功 (layers={num_hidden_layers})")
+    print(f" 模型加载成功 (layers={num_hidden_layers})")
     return model
 
 
@@ -110,7 +110,7 @@ def main():
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     print("\n" + "="*70)
-    print("🚀 CSIBERT 完整实验运行器")
+    print(" CSIBERT 完整实验运行器")
     print("="*70)
     print(f"设备: {device}")
     print(f"模式: {args.mode}")
@@ -123,7 +123,7 @@ def main():
         padded_data, attention_masks, feature_dim = load_and_preprocess_data(args.data)
         model = load_model(args.model, feature_dim, device)
     except Exception as e:
-        print(f"❌ 加载失败: {e}")
+        print(f" 加载失败: {e}")
         return
     
     # 创建掩码数据
@@ -133,19 +133,19 @@ def main():
     # 运行基础验证 (使用 model_validation.py)
     if args.mode in ['basic', 'all']:
         print("\n" + "="*70)
-        print("📋 运行基础验证测试")
+        print(" 运行基础验证测试")
         print("="*70 + "\n")
         
         try:
             validator = CSIBERTValidator(args.model, args.data, device=device)
             validator.run_all_tests()
         except Exception as e:
-            print(f"❌ 基础验证失败: {e}")
+            print(f" 基础验证失败: {e}")
     
     # 运行高级实验 (使用 experiments_extended.py)
     if args.mode in ['advanced', 'all']:
         print("\n" + "="*70)
-        print("🔬 运行高级实验")
+        print(" 运行高级实验")
         print("="*70 + "\n")
         
         try:
@@ -172,16 +172,16 @@ def main():
                     else:
                         summary[key] = str(val)
                 json.dump(summary, f, indent=2)
-                print(f"\n✅ 结果总结已保存: {args.output}/advanced_experiments_summary.json")
+                print(f"\n 结果总结已保存: {args.output}/advanced_experiments_summary.json")
         
         except Exception as e:
-            print(f"❌ 高级实验失败: {e}")
+            print(f" 高级实验失败: {e}")
             import traceback
             traceback.print_exc()
     
     print("\n" + "="*70)
     print("✨ 实验运行完成！")
-    print(f"📊 结果保存在: {args.output}/")
+    print(f" 结果保存在: {args.output}/")
     print("="*70 + "\n")
 
 

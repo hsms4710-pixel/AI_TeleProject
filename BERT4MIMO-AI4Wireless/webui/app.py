@@ -102,13 +102,13 @@ class TrainingManager:
             # 默认加载best_model.pt
             checkpoint_path = PROJECT_ROOT / "checkpoints" / "best_model.pt"
             if not checkpoint_path.exists():
-                self.log_status("ℹ️ 未发现模型文件")
+                self.log_status(" 未发现模型文件")
                 return False
         else:
             checkpoint_path = Path(model_info['path'])
         
         try:
-            self.log_status(f"🔍 正在加载模型: {checkpoint_path.name}")
+            self.log_status(f" 正在加载模型: {checkpoint_path.name}")
             checkpoint = torch.load(checkpoint_path, map_location=device)
             
             # 提取模型配置
@@ -133,14 +133,14 @@ class TrainingManager:
             
             self.current_model_path = str(checkpoint_path)
             
-            self.log_status(f"✅ 模型加载成功: {checkpoint_path.name}")
-            self.log_status(f"📊 配置: Hidden={self.model_config['hidden_size']}, "
+            self.log_status(f" 模型加载成功: {checkpoint_path.name}")
+            self.log_status(f" 配置: Hidden={self.model_config['hidden_size']}, "
                            f"Layers={self.model_config['num_hidden_layers']}, "
                            f"Heads={self.model_config['num_attention_heads']}")
             return True
             
         except Exception as e:
-            self.log_status(f"⚠️ 模型加载失败: {str(e)}")
+            self.log_status(f" 模型加载失败: {str(e)}")
             self.model = None
             self.model_config = None
             self.current_model_path = None
@@ -149,7 +149,7 @@ class TrainingManager:
     def load_model_by_name(self, model_display_name):
         """根据显示名称加载模型"""
         if not model_display_name:
-            return "❌ 请选择一个模型"
+            return " 请选择一个模型"
         
         # 从显示名称中提取实际文件名
         model_name = model_display_name.split(" (")[0]
@@ -162,26 +162,26 @@ class TrainingManager:
                 break
         
         if model_info is None:
-            return "❌ 未找到指定的模型"
+            return " 未找到指定的模型"
         
         # 加载模型
         if self.auto_load_model(model_info):
-            return f"✅ 成功加载模型: {model_name}\n\n{self.get_model_status()}"
+            return f" 成功加载模型: {model_name}\n\n{self.get_model_status()}"
         else:
-            return f"❌ 模型加载失败"
+            return f" 模型加载失败"
     
     def get_model_status(self):
         """获取当前模型状态"""
         if self.model is not None:
             config_str = f"Hidden={self.model_config['hidden_size']}, Layers={self.model_config['num_hidden_layers']}, Heads={self.model_config['num_attention_heads']}"
             model_name = Path(self.current_model_path).name if self.current_model_path else "Unknown"
-            return f"✅ 已加载模型\n📁 文件: {model_name}\n⚙️ 配置: {config_str}"
+            return f" 已加载模型\n 文件: {model_name}\n 配置: {config_str}"
         else:
             model_count = len(self.available_models)
             if model_count > 0:
-                return f"❌ 未加载模型\n📊 可用模型: {model_count} 个\n💡 请从下方列表选择模型加载"
+                return f" 未加载模型\n 可用模型: {model_count} 个\n 请从下方列表选择模型加载"
             else:
-                return "❌ 未加载模型\n📂 checkpoints目录中无可用模型\n💡 请先训练模型"
+                return " 未加载模型\n checkpoints目录中无可用模型\n 请先训练模型"
     
     def one_click_train(self, hidden_size, num_layers, num_heads, intermediate_size, max_position, epochs, batch_size, learning_rate):
         """一键训练：数据生成 → 数据处理 → 模型训练 → 测试"""
@@ -190,12 +190,12 @@ class TrainingManager:
         
         try:
             self.log_status("=" * 60)
-            self.log_status("🚀 一键训练流程启动")
+            self.log_status(" 一键训练流程启动")
             self.log_status("=" * 60)
             
             # 步骤1: 生成数据
-            self.log_status("\n📊 步骤 1/4: 生成CSI数据...")
-            self.log_status("⚙️ 使用标准配置生成数据:")
+            self.log_status("\n 步骤 1/4: 生成CSI数据...")
+            self.log_status(" 使用标准配置生成数据:")
             self.log_status("  - 基站数: 10")
             self.log_status("  - 用户数: 200")
             self.log_status("  - 子载波: 64")
@@ -203,23 +203,23 @@ class TrainingManager:
             self.log_status("  - 用户天线: 4")
             
             # TODO: 这里调用MATLAB或Python数据生成脚本
-            self.log_status("⚠️ 数据生成需要MATLAB，跳过此步骤")
-            self.log_status("📂 尝试加载已有数据...")
+            self.log_status(" 数据生成需要MATLAB，跳过此步骤")
+            self.log_status(" 尝试加载已有数据...")
             
             # 步骤2: 加载和预处理数据
-            self.log_status("\n🔧 步骤 2/4: 数据预处理...")
+            self.log_status("\n 步骤 2/4: 数据预处理...")
             try:
                 import scipy.io
                 cell_data = scipy.io.loadmat('foundation_model_data/csi_data_massive_mimo.mat')['multi_cell_csi']
                 self.log_status(f"✓ 成功加载数据: {cell_data.shape}")
             except Exception as e:
-                self.log_status(f"⚠️ 无法加载数据文件: {str(e)}")
-                self.log_status("📝 生成随机演示数据...")
+                self.log_status(f" 无法加载数据文件: {str(e)}")
+                self.log_status(" 生成随机演示数据...")
                 cell_data = np.random.randn(10, 200, 64, 4, 2)
             
             # 预处理数据
             preprocessed_data = []
-            self.log_status("⚙️ 预处理CSI矩阵...")
+            self.log_status(" 预处理CSI矩阵...")
             
             for i in range(min(500, np.prod(cell_data.shape[:2]))):
                 try:
@@ -235,15 +235,15 @@ class TrainingManager:
                     pass
             
             if len(preprocessed_data) == 0:
-                self.log_status("⚠️ 预处理失败，使用随机数据")
+                self.log_status(" 预处理失败，使用随机数据")
                 preprocessed_data = [np.random.randn(64, 64) for _ in range(500)]
             
             preprocessed_data = np.array(preprocessed_data)
             self.log_status(f"✓ 预处理完成: {len(preprocessed_data)} 个样本")
             
             # 步骤3: 模型训练
-            self.log_status("\n🤖 步骤 3/4: 模型训练...")
-            self.log_status("📊 使用配置:")
+            self.log_status("\n 步骤 3/4: 模型训练...")
+            self.log_status(" 使用配置:")
             self.log_status(f"  - Hidden Size: {hidden_size}")
             self.log_status(f"  - Num Layers: {num_layers}")
             self.log_status(f"  - Attention Heads: {num_heads}")
@@ -278,12 +278,12 @@ class TrainingManager:
             criterion = torch.nn.MSELoss()
             
             # 训练循环
-            self.log_status(f"\n🔄 开始训练 {int(epochs)} 轮...")
+            self.log_status(f"\n 开始训练 {int(epochs)} 轮...")
             
             best_loss = float('inf')
             for epoch in range(int(epochs)):
                 if not self.training_active:
-                    self.log_status("⏹️ 训练被中断")
+                    self.log_status(" 训练被中断")
                     break
                 
                 self.model.train()
@@ -326,10 +326,10 @@ class TrainingManager:
                         }
                     }, checkpoint_dir / "best_model.pt")
             
-            self.log_status(f"\n✅ 训练完成！最佳Loss: {best_loss:.6f}")
+            self.log_status(f"\n 训练完成！最佳Loss: {best_loss:.6f}")
             
             # 步骤4: 快速测试
-            self.log_status("\n🔬 步骤 4/4: 模型测试...")
+            self.log_status("\n 步骤 4/4: 模型测试...")
             self.model.eval()
             
             with torch.no_grad():
@@ -339,16 +339,16 @@ class TrainingManager:
                 self.log_status(f"✓ 测试Loss: {test_loss.item():.6f}")
             
             self.log_status("\n" + "=" * 60)
-            self.log_status("🎉 一键训练流程完成！")
+            self.log_status(" 一键训练流程完成！")
             self.log_status("=" * 60)
-            self.log_status(f"📁 模型已保存到: checkpoints/best_model.pt")
-            self.log_status(f"📊 训练样本数: {len(preprocessed_data)}")
-            self.log_status(f"🎯 最终Loss: {best_loss:.6f}")
+            self.log_status(f" 模型已保存到: checkpoints/best_model.pt")
+            self.log_status(f" 训练样本数: {len(preprocessed_data)}")
+            self.log_status(f" 最终Loss: {best_loss:.6f}")
             
             return "\n".join(self.status_log)
             
         except Exception as e:
-            error_msg = f"❌ 训练出错: {str(e)}"
+            error_msg = f" 训练出错: {str(e)}"
             self.log_status(error_msg)
             import traceback
             self.log_status(traceback.format_exc())
@@ -363,28 +363,28 @@ class TrainingManager:
         self.status_log = []
         
         try:
-            self.log_status("🚀 开始训练模型...")
-            self.log_status(f"📊 模型配置:")
+            self.log_status(" 开始训练模型...")
+            self.log_status(f" 模型配置:")
             self.log_status(f"  Hidden Size: {hidden_size}")
             self.log_status(f"  Num Layers: {num_layers}")
             self.log_status(f"  Attention Heads: {num_heads}")
             self.log_status(f"  Intermediate Size: {intermediate_size}")
             self.log_status(f"  Max Position: {max_position}")
-            self.log_status(f"📈 训练配置:")
+            self.log_status(f" 训练配置:")
             self.log_status(f"  Epochs: {epochs}")
             self.log_status(f"  Batch Size: {batch_size}")
             self.log_status(f"  Learning Rate: {learning_rate}")
             
             # 加载数据
-            self.log_status("\n📂 加载CSI数据...")
+            self.log_status("\n 加载CSI数据...")
             try:
                 cell_data = np.load("BERT4MIMO-AI4Wireless/foundation_model_data/csi_data_massive_mimo.npy", allow_pickle=True)
             except:
-                self.log_status("⚠️ 未找到预处理数据，生成随机数据进行演示...")
+                self.log_status(" 未找到预处理数据，生成随机数据进行演示...")
                 cell_data = np.random.randn(10, 5, 64, 32, 2)
             
             # 预处理
-            self.log_status("⚙️ 数据预处理中...")
+            self.log_status(" 数据预处理中...")
             preprocessed_data = []
             for i in range(min(100, len(cell_data.flatten()))):
                 try:
@@ -409,7 +409,7 @@ class TrainingManager:
             loader = DataLoader(dataset, batch_size=int(batch_size), shuffle=True)
             
             # 初始化模型
-            self.log_status("\n🤖 初始化CSIBERT模型...")
+            self.log_status("\n 初始化CSIBERT模型...")
             self.model = CSIBERT(
                 vocab_size=64,
                 hidden_size=int(hidden_size),
@@ -427,10 +427,10 @@ class TrainingManager:
             criterion = torch.nn.MSELoss()
             
             # 训练循环
-            self.log_status("\n🔄 开始训练循环...")
+            self.log_status("\n 开始训练循环...")
             for epoch in range(int(epochs)):
                 if not self.training_active:
-                    self.log_status("⏹️ 训练被中断")
+                    self.log_status(" 训练被中断")
                     break
                 
                 total_loss = 0
@@ -457,13 +457,13 @@ class TrainingManager:
                         self.model.state_dict(),
                         checkpoint_dir / f"model_epoch_{epoch+1}.pt"
                     )
-                    self.log_status(f"💾 已保存检查点: epoch_{epoch+1}")
+                    self.log_status(f" 已保存检查点: epoch_{epoch+1}")
             
-            self.log_status("✅ 训练完成！")
+            self.log_status(" 训练完成！")
             return "\n".join(self.status_log)
         
         except Exception as e:
-            error_msg = f"❌ 训练错误: {str(e)}"
+            error_msg = f" 训练错误: {str(e)}"
             self.log_status(error_msg)
             return "\n".join(self.status_log)
         
@@ -473,7 +473,7 @@ class TrainingManager:
     def stop_training(self):
         """停止训练"""
         self.training_active = False
-        self.log_status("⏹️ 训练停止命令已发送")
+        self.log_status(" 训练停止命令已发送")
         return "训练已停止"
     
     def run_experiments(self, exp_list, progress_callback=None):
@@ -489,13 +489,13 @@ class TrainingManager:
         """
         if self.model is None:
             if not self.auto_load_model():
-                return "❌ 未找到模型，无法运行实验"
+                return " 未找到模型，无法运行实验"
         
         results = []
         results.append("=" * 60)
-        results.append("🔬 开始运行实验套件")
+        results.append(" 开始运行实验套件")
         results.append("=" * 60)
-        results.append(f"\n📋 计划运行 {len(exp_list)} 项实验\n")
+        results.append(f"\n 计划运行 {len(exp_list)} 项实验\n")
         
         try:
             from model_validation import CSIBERTValidator
@@ -514,56 +514,56 @@ class TrainingManager:
                 try:
                     if "Reconstruction Error" in exp_name:
                         validator.test_reconstruction_error(mask_ratio=0.15)
-                        results.append("✅ 重构误差测试完成")
-                        results.append("📊 生成图表: reconstruction_error.png")
+                        results.append(" 重构误差测试完成")
+                        results.append(" 生成图表: reconstruction_error.png")
                         
                     elif "Prediction Accuracy" in exp_name:
                         validator.test_prediction_accuracy(history_len=10, predict_steps=[1, 3, 5])
-                        results.append("✅ 预测准确度测试完成")
-                        results.append("📊 生成图表: prediction_accuracy.png")
+                        results.append(" 预测准确度测试完成")
+                        results.append(" 生成图表: prediction_accuracy.png")
                         
                     elif "SNR Robustness" in exp_name:
                         validator.test_snr_robustness(snr_range=[-10, 0, 10, 20, 30])
-                        results.append("✅ SNR鲁棒性测试完成")
-                        results.append("📊 生成图表: snr_robustness.png")
+                        results.append(" SNR鲁棒性测试完成")
+                        results.append(" 生成图表: snr_robustness.png")
                         
                     elif "Compression Ratio" in exp_name:
                         validator.test_compression_ratio(mask_ratios=[0.1, 0.3, 0.5, 0.7])
-                        results.append("✅ 压缩率测试完成")
-                        results.append("📊 生成图表: compression_ratio.png")
+                        results.append(" 压缩率测试完成")
+                        results.append(" 生成图表: compression_ratio.png")
                         
                     elif "Inference Speed" in exp_name:
                         validator.test_inference_speed(batch_sizes=[1, 8, 16, 32])
-                        results.append("✅ 推理速度测试完成")
-                        results.append("📊 生成图表: inference_speed.png")
+                        results.append(" 推理速度测试完成")
+                        results.append(" 生成图表: inference_speed.png")
                         
                     elif "All Basic" in exp_name:
                         results.append("🔰 运行所有基础测试...")
                         validator.run_all_tests()
-                        results.append("✅ 所有基础测试完成")
-                        results.append("📁 生成报告: validation_results/")
+                        results.append(" 所有基础测试完成")
+                        results.append(" 生成报告: validation_results/")
                         
                     else:
-                        results.append(f"⚠️ 暂未实现: {exp_name}")
+                        results.append(f" 暂未实现: {exp_name}")
                     
                     if progress_callback:
                         progress_callback(i / len(exp_list))
                         
                 except Exception as e:
-                    results.append(f"❌ 实验失败: {str(e)}")
+                    results.append(f" 实验失败: {str(e)}")
                 
                 results.append("")
             
             results.append("=" * 60)
-            results.append("✅ 实验套件执行完成")
+            results.append(" 实验套件执行完成")
             results.append("=" * 60)
-            results.append("\n📁 结果保存位置:")
+            results.append("\n 结果保存位置:")
             results.append("  - 图表: ./validation_results/")
             results.append("  - 数据: ./validation_results/")
             results.append("  - 报告: ./validation_results/VALIDATION_REPORT.md")
             
         except Exception as e:
-            results.append(f"\n❌ 实验套件错误: {str(e)}")
+            results.append(f"\n 实验套件错误: {str(e)}")
         
         return "\n".join(results)
 
@@ -576,7 +576,7 @@ def create_interface():
     with gr.Blocks(title="CSIBERT WebUI - MIMO CSI处理", theme=gr.themes.Soft()) as app:
         
         gr.Markdown("""
-        # 🚀 CSIBERT WebUI - 无线通信CSI处理框架
+        #  CSIBERT WebUI - 无线通信CSI处理框架
         
         基于 BERT 架构的大规模 MIMO 信道状态信息 (CSI) 处理平台
         """)
@@ -584,21 +584,21 @@ def create_interface():
         with gr.Tabs():
             
             # 标签1: 一键训练
-            with gr.TabItem("⚡ 一键训练"):
+            with gr.TabItem(" 一键训练"):
                 gr.Markdown("## 一键完整流程 - 数据生成到模型测试")
                 
                 gr.Markdown("""
-                **🚀 完整自动化流程**，包含以下步骤：
+                ** 完整自动化流程**，包含以下步骤：
                 
-                1. 📊 **数据生成** - 生成CSI训练数据（如已存在则跳过）
-                2. 🔧 **数据预处理** - 归一化、填充、掩码处理
-                3. 🤖 **模型训练** - 可自定义所有参数
-                4. 🔬 **模型测试** - 快速验证模型性能
+                1.  **数据生成** - 生成CSI训练数据（如已存在则跳过）
+                2.  **数据预处理** - 归一化、填充、掩码处理
+                3.  **模型训练** - 可自定义所有参数
+                4.  **模型测试** - 快速验证模型性能
                 """)
                 
                 with gr.Row():
                     with gr.Column():
-                        gr.Markdown("### 🎯 模型架构参数")
+                        gr.Markdown("###  模型架构参数")
                         
                         quick_hidden_size = gr.Slider(
                             minimum=128, maximum=1024, value=512, step=64,
@@ -627,7 +627,7 @@ def create_interface():
                         )
                     
                     with gr.Column():
-                        gr.Markdown("### 📈 训练配置参数")
+                        gr.Markdown("###  训练配置参数")
                         
                         quick_epochs = gr.Slider(
                             minimum=1, maximum=500, value=50, step=1,
@@ -646,7 +646,7 @@ def create_interface():
                         )
                         
                         gr.Markdown("""
-                        ### ⚡ 快速预设
+                        ###  快速预设
                         点击按钮快速填充参数：
                         """)
                         
@@ -661,11 +661,11 @@ def create_interface():
                 """)
                 
                 with gr.Row():
-                    quick_train_btn = gr.Button("🎯 开始完整流程", scale=2, variant="primary", size="lg")
-                    quick_stop_btn = gr.Button("⏹️ 停止", scale=1, variant="stop")
+                    quick_train_btn = gr.Button(" 开始完整流程", scale=2, variant="primary", size="lg")
+                    quick_stop_btn = gr.Button(" 停止", scale=1, variant="stop")
                 
                 quick_status = gr.Textbox(
-                    label="📊 流程状态",
+                    label=" 流程状态",
                     interactive=False,
                     lines=20,
                     max_lines=40
@@ -716,7 +716,7 @@ def create_interface():
                 )
             
             # 标签2: 导入数据训练
-            with gr.TabItem("📂 导入数据训练"):
+            with gr.TabItem(" 导入数据训练"):
                 gr.Markdown("## 自定义配置训练")
                 
                 with gr.Row():
@@ -725,68 +725,68 @@ def create_interface():
                         preset = gr.Radio(
                             choices=["轻量化配置", "标准配置", "原始配置"],
                             value="标准配置",
-                            label="⚡ 预设配置（可选）",
+                            label=" 预设配置（可选）",
                             info="点击预设会自动填充参数，但所有参数都可自由修改"
                         )
                     
                     with gr.Column():
                         gr.Markdown("""
-                        ### 💡 配置参考（所有参数可自定义）
+                        ###  配置参考（所有参数可自定义）
                         
                         | 配置 | Hidden | Layers | Heads | Epochs | Batch |
                         |------|--------|--------|-------|--------|-------|
-                        | ⚡ 轻量化 | 256 | 4 | 4 | 10 | 16 |
-                        | ⭐ 标准 | 512 | 8 | 8 | 50 | 32 |
-                        | 🚀 原始 | 768 | 12 | 12 | 200 | 64 |
+                        |  轻量化 | 256 | 4 | 4 | 10 | 16 |
+                        |  标准 | 512 | 8 | 8 | 50 | 32 |
+                        |  原始 | 768 | 12 | 12 | 200 | 64 |
                         
                         **提示**: 下方所有参数都可以自由调整！
                         """)
                 
-                gr.Markdown("### 🎯 模型架构参数")
+                gr.Markdown("###  模型架构参数")
                 
                 with gr.Row():
                     with gr.Column():
                         hidden_size = gr.Slider(
                             minimum=128, maximum=1024, value=512, step=64,
                             label="隐藏层维度 (Hidden Size)",
-                            info="⚡轻量:256 | ⭐标准:512 | 🚀原始:768"
+                            info="轻量:256 | 标准:512 | 原始:768"
                         )
                         num_layers = gr.Slider(
                             minimum=2, maximum=24, value=8, step=1,
                             label="Transformer层数 (Num Layers)",
-                            info="⚡轻量:4 | ⭐标准:8 | 🚀原始:12"
+                            info="轻量:4 | 标准:8 | 原始:12"
                         )
                         num_heads = gr.Slider(
                             minimum=2, maximum=16, value=8, step=1,
                             label="注意力头数 (Attention Heads)",
-                            info="⚡轻量:4 | ⭐标准:8 | 🚀原始:12"
+                            info="轻量:4 | 标准:8 | 原始:12"
                         )
                     
                     with gr.Column():
                         intermediate_size = gr.Slider(
                             minimum=512, maximum=4096, value=2048, step=256,
                             label="FFN中间层维度 (Intermediate Size)",
-                            info="⚡轻量:1024 | ⭐标准:2048 | 🚀原始:3072"
+                            info="轻量:1024 | 标准:2048 | 原始:3072"
                         )
                         max_position = gr.Slider(
                             minimum=512, maximum=8192, value=4096, step=512,
                             label="最大序列长度 (Max Position)",
-                            info="⚡轻量:2048 | ⭐标准:4096 | 🚀原始:4096"
+                            info="轻量:2048 | 标准:4096 | 原始:4096"
                         )
                 
-                gr.Markdown("### 📊 训练参数")
+                gr.Markdown("###  训练参数")
                 
                 with gr.Row():
                     with gr.Column():
                         epochs = gr.Slider(
                             minimum=1, maximum=500, value=50, step=1,
                             label="训练轮数 (Epochs)",
-                            info="⚡轻量:10 | ⭐标准:50 | 🚀原始:200"
+                            info="轻量:10 | 标准:50 | 原始:200"
                         )
                         batch_size = gr.Slider(
                             minimum=8, maximum=256, value=32, step=8,
                             label="批大小 (Batch Size)",
-                            info="⚡轻量:16 | ⭐标准:32 | 🚀原始:64"
+                            info="轻量:16 | 标准:32 | 原始:64"
                         )
                         learning_rate = gr.Slider(
                             minimum=1e-5, maximum=1e-2, value=1e-4, step=1e-5,
@@ -796,7 +796,7 @@ def create_interface():
                     
                     with gr.Column():
                         data_file = gr.File(
-                            label="📁 上传CSI数据文件 (.npy 或 .mat)",
+                            label=" 上传CSI数据文件 (.npy 或 .mat)",
                             file_count="single",
                             type="filepath"
                         )
@@ -811,11 +811,11 @@ def create_interface():
                         """)
                 
                 with gr.Row():
-                    custom_train_btn = gr.Button("🎯 开始训练", scale=2, variant="primary")
-                    custom_stop_btn = gr.Button("⏹️ 停止训练", scale=1, variant="stop")
+                    custom_train_btn = gr.Button(" 开始训练", scale=2, variant="primary")
+                    custom_stop_btn = gr.Button(" 停止训练", scale=1, variant="stop")
                 
                 custom_status = gr.Textbox(
-                    label="📊 训练状态",
+                    label=" 训练状态",
                     interactive=False,
                     lines=15,
                     max_lines=30
@@ -848,10 +848,10 @@ def create_interface():
                 )
             
             # 标签3: 生成数据
-            with gr.TabItem("🔧 生成数据"):
+            with gr.TabItem(" 生成数据"):
                 gr.Markdown("## CSI数据生成工具（Massive MIMO 5G NR）")
                 
-                gr.Markdown("### 📡 基本参数")
+                gr.Markdown("###  基本参数")
                 with gr.Row():
                     with gr.Column():
                         num_cells = gr.Slider(
@@ -882,7 +882,7 @@ def create_interface():
                             info="默认: 4 | 范围: 1-16"
                         )
                 
-                gr.Markdown("### 📶 信道参数")
+                gr.Markdown("###  信道参数")
                 with gr.Row():
                     with gr.Column():
                         nr_sample_rate = gr.Slider(
@@ -911,7 +911,7 @@ def create_interface():
                 with gr.Row():
                     with gr.Column():
                         gr.Markdown("""
-                        ### 📋 生成说明
+                        ###  生成说明
                         
                         **数据结构**: 
                         - 多小区、多用户、多场景
@@ -928,7 +928,7 @@ def create_interface():
                     
                     with gr.Column():
                         gr.Markdown("""
-                        ### 💡 参数建议
+                        ###  参数建议
                         
                         **快速测试**:
                         - 基站: 2, 用户: 20
@@ -944,7 +944,7 @@ def create_interface():
                         - 5G Toolbox (推荐)
                         """)
                 
-                gen_btn = gr.Button("🚀 生成数据", variant="primary", size="lg")
+                gen_btn = gr.Button(" 生成数据", variant="primary", size="lg")
                 gen_status = gr.Textbox(
                     label="生成状态",
                     interactive=False,
@@ -954,9 +954,9 @@ def create_interface():
                 def generate_data(cells, ues, subcarriers, bs_antennas, ue_antennas, sample_rate, snr, speed, freq):
                     """生成CSI数据（调用MATLAB脚本）"""
                     try:
-                        return f"""🚀 正在准备生成数据...
+                        return f""" 正在准备生成数据...
                         
-📊 数据生成参数:
+ 数据生成参数:
 ════════════════════════════════════════
 基本参数:
   • 基站数量: {int(cells)}
@@ -973,14 +973,14 @@ def create_interface():
   • 高速用户速度: {speed} km/h
   • 载波频率: {freq/1e9:.2f} GHz
 
-📝 预计生成数据:
+ 预计生成数据:
   • 总样本数: {int(cells)} × {int(ues)} × 3场景 = {int(cells * ues * 3)}
   • 数据维度: ({int(subcarriers)}, {int(bs_antennas)}, {int(ue_antennas)})
 ════════════════════════════════════════
 
-⚠️ 注意: 此功能需要 MATLAB 和相关工具箱
+ 注意: 此功能需要 MATLAB 和相关工具箱
 
-📝 手动执行步骤:
+ 手动执行步骤:
 1. 打开 MATLAB
 2. 修改 data_generator.m 中的参数:
    numCells = {int(cells)};
@@ -996,14 +996,14 @@ def create_interface():
 3. 运行: run('data_generator.m')
 4. 等待生成完成
 
-💡 或使用命令行:
+ 或使用命令行:
    matlab -batch "run('data_generator.m')"
 
-📁 生成文件将保存到:
+ 生成文件将保存到:
    foundation_model_data/csi_data_massive_mimo.mat
 """
                     except Exception as e:
-                        return f"❌ 生成错误: {str(e)}"
+                        return f" 生成错误: {str(e)}"
                 
                 gen_btn.click(
                     fn=generate_data,
@@ -1013,7 +1013,7 @@ def create_interface():
                 )
             
             # 标签4: 进行实验
-            with gr.TabItem("🔬 进行实验"):
+            with gr.TabItem(" 进行实验"):
                 gr.Markdown("## 实验与验证")
                 
                 # 模型选择和状态
@@ -1021,18 +1021,18 @@ def create_interface():
                     with gr.Column(scale=2):
                         model_selector = gr.Dropdown(
                             choices=manager.get_model_list_display(),
-                            label="🎯 选择模型",
+                            label=" 选择模型",
                             value=manager.get_model_list_display()[0] if manager.get_model_list_display() else None,
                             info="选择要用于实验的模型文件"
                         )
                         
                         with gr.Row():
                             load_model_btn = gr.Button("📥 加载选中模型", variant="secondary", size="sm")
-                            rescan_models_btn = gr.Button("🔄 重新扫描", size="sm")
+                            rescan_models_btn = gr.Button(" 重新扫描", size="sm")
                     
                     with gr.Column(scale=3):
                         model_status_display = gr.Textbox(
-                            label="📊 当前模型状态",
+                            label=" 当前模型状态",
                             value=manager.get_model_status(),
                             interactive=False,
                             lines=4
@@ -1085,7 +1085,7 @@ def create_interface():
                             label="选择基础实验",
                             value="Reconstruction Error - 重构误差"
                         )
-                        run_basic_exp_btn = gr.Button("🚀 运行基础实验", variant="primary", size="lg")
+                        run_basic_exp_btn = gr.Button(" 运行基础实验", variant="primary", size="lg")
                     
                     basic_exp_output = gr.Textbox(
                         label="基础实验结果",
@@ -1095,7 +1095,7 @@ def create_interface():
                 
                 # 高级实验
                 with gr.Column(visible=False) as advanced_exp_col:
-                    gr.Markdown("### 🎯 高级实验 - 深度分析")
+                    gr.Markdown("###  高级实验 - 深度分析")
                     
                     with gr.Row():
                         advanced_exp_type = gr.Dropdown(
@@ -1113,7 +1113,7 @@ def create_interface():
                             label="选择高级实验",
                             value="Masking Ratio Sensitivity - 掩码比率敏感性"
                         )
-                        run_advanced_exp_btn = gr.Button("🚀 运行高级实验", variant="primary", size="lg")
+                        run_advanced_exp_btn = gr.Button(" 运行高级实验", variant="primary", size="lg")
                     
                     advanced_exp_output = gr.Textbox(
                         label="高级实验结果",
@@ -1123,7 +1123,7 @@ def create_interface():
                 
                 # 全部实验
                 with gr.Column(visible=False) as all_exp_col:
-                    gr.Markdown("### 🎁 完整实验套件 - 基础测试 + 高级实验")
+                    gr.Markdown("###  完整实验套件 - 基础测试 + 高级实验")
                     gr.Markdown("""
                     运行所有13项测试和实验，生成完整的性能评估报告：
                     
@@ -1146,7 +1146,7 @@ def create_interface():
                     """)
                     
                     with gr.Row():
-                        run_all_exp_btn = gr.Button("🎯 运行全部实验", variant="primary", size="lg")
+                        run_all_exp_btn = gr.Button(" 运行全部实验", variant="primary", size="lg")
                     
                     all_exp_output = gr.Textbox(
                         label="全部实验进度",
@@ -1179,7 +1179,7 @@ def create_interface():
                             manager.auto_load_model(manager.available_models[0])
                         
                         if manager.model is None:
-                            return "❌ 未找到可用模型！\n\n💡 解决方案：\n1. 请先在'⚡一键训练'或'📂导入数据训练'中训练模型\n2. 或将已训练模型放入 checkpoints/ 目录\n3. 点击'🔄重新扫描'刷新模型列表"
+                            return " 未找到可用模型！\n\n 解决方案：\n1. 请先在'一键训练'或'导入数据训练'中训练模型\n2. 或将已训练模型放入 checkpoints/ 目录\n3. 点击'重新扫描'刷新模型列表"
                     
                     try:
                         # 检查是否运行所有基础实验
@@ -1197,7 +1197,7 @@ def create_interface():
                         return manager.run_experiments([exp_type])
                         
                     except Exception as e:
-                        return f"❌ 实验错误: {str(e)}"
+                        return f" 实验错误: {str(e)}"
                 
                 run_basic_exp_btn.click(
                     fn=run_basic_experiment,
@@ -1214,7 +1214,7 @@ def create_interface():
                             manager.auto_load_model(manager.available_models[0])
                         
                         if manager.model is None:
-                            return "❌ 未找到可用模型！\n\n💡 解决方案：\n1. 请先在'⚡一键训练'或'📂导入数据训练'中训练模型\n2. 或将已训练模型放入 checkpoints/ 目录\n3. 点击'🔄重新扫描'刷新模型列表"
+                            return " 未找到可用模型！\n\n 解决方案：\n1. 请先在'一键训练'或'导入数据训练'中训练模型\n2. 或将已训练模型放入 checkpoints/ 目录\n3. 点击'重新扫描'刷新模型列表"
                     
                     try:
                         # 检查是否运行所有高级实验
@@ -1235,7 +1235,7 @@ def create_interface():
                         return manager.run_experiments([exp_type])
                         
                     except Exception as e:
-                        return f"❌ 实验错误: {str(e)}"
+                        return f" 实验错误: {str(e)}"
                 
                 run_advanced_exp_btn.click(
                     fn=run_advanced_experiment,
@@ -1252,7 +1252,7 @@ def create_interface():
                             manager.auto_load_model(manager.available_models[0])
                         
                         if manager.model is None:
-                            return "❌ 未找到可用模型！\n\n💡 解决方案：\n1. 请先在'⚡一键训练'或'📂导入数据训练'中训练模型\n2. 或将已训练模型放入 checkpoints/ 目录\n3. 点击'🔄重新扫描'刷新模型列表"
+                            return " 未找到可用模型！\n\n 解决方案：\n1. 请先在'一键训练'或'导入数据训练'中训练模型\n2. 或将已训练模型放入 checkpoints/ 目录\n3. 点击'重新扫描'刷新模型列表"
                     
                     try:
                         # 所有实验列表
@@ -1274,7 +1274,7 @@ def create_interface():
                         return manager.run_experiments(all_exp_list)
                         
                     except Exception as e:
-                        return f"❌ 实验错误: {str(e)}"
+                        return f" 实验错误: {str(e)}"
                 
                 run_all_exp_btn.click(
                     fn=run_all_experiments,
@@ -1282,29 +1282,29 @@ def create_interface():
                 )
             
             # 标签5: 关于
-            with gr.TabItem("ℹ️ 关于"):
+            with gr.TabItem(" 关于"):
                 gr.Markdown("""
-                ## 📋 CSIBERT 项目信息
+                ##  CSIBERT 项目信息
                 
                 **项目名称**: BERT4MIMO - AI for Wireless Communications
                 
                 **版本**: 1.0.0
                 
                 **4大功能**:
-                1. **⚡ 一键训练** - 从数据生成到训练测试的全自动流程，支持参数自定义
-                2. **📂 导入数据训练** - 导入现有数据，选择配置方案或自定义参数
-                3. **🔧 生成数据** - 生成合成CSI数据集，支持9种参数配置
-                4. **🔬 进行实验** - 5种基础实验 + 8种高级实验，支持单项/批量/全部运行
+                1. ** 一键训练** - 从数据生成到训练测试的全自动流程，支持参数自定义
+                2. ** 导入数据训练** - 导入现有数据，选择配置方案或自定义参数
+                3. ** 生成数据** - 生成合成CSI数据集，支持9种参数配置
+                4. ** 进行实验** - 5种基础实验 + 8种高级实验，支持单项/批量/全部运行
                 
                 ---
                 
-                ## 🔬 实验功能说明
+                ##  实验功能说明
                 
                 **智能实验管理**:
-                - ✅ 自动检测已训练模型，无需重复训练
-                - 📊 支持单项实验、批量运行、全部运行
-                - 📈 自动生成可视化图表和分析报告
-                - 💾 结果保存到 validation_results/ 目录
+                -  自动检测已训练模型，无需重复训练
+                -  支持单项实验、批量运行、全部运行
+                -  自动生成可视化图表和分析报告
+                -  结果保存到 validation_results/ 目录
                 
                 **基础实验** (快速性能验证):
                 1. 重构误差 - MSE/MAE分析
@@ -1325,23 +1325,23 @@ def create_interface():
                 
                 ---
                 
-                ## 🎯 三级配置方案
+                ##  三级配置方案
                 
-                ### 方案1：轻量化配置 ⚡
+                ### 方案1：轻量化配置 
                 - **场景**: 快速体验、学习、原型验证
                 - **硬件**: 4GB 显存（入门级显卡）
                 - **模型**: Hidden=256, Layers=4, Heads=4
                 - **训练**: Epochs=10, Batch=16, 耗时≈5分钟
                 - **精度**: 85% | **速度**: 100 fps | **显存**: 2GB
                 
-                ### 方案2：标准配置 ⭐（推荐）
+                ### 方案2：标准配置 （推荐）
                 - **场景**: 生产环境、应用开发、常规研究
                 - **硬件**: 4-8GB 显存（主流显卡）
                 - **模型**: Hidden=512, Layers=8, Heads=8
                 - **训练**: Epochs=50, Batch=32, 耗时≈25分钟
                 - **精度**: 92% | **速度**: 50 fps | **显存**: 4GB
                 
-                ### 方案3：原始配置 🚀
+                ### 方案3：原始配置 
                 - **场景**: 论文发表、高精度要求、离线处理
                 - **硬件**: 8GB+ 显存（高端显卡）
                 - **模型**: Hidden=768, Layers=12, Heads=12
@@ -1350,25 +1350,25 @@ def create_interface():
                 
                 ---
                 
-                ## 💻 硬件推荐
+                ##  硬件推荐
                 
                 | 显卡型号 | 显存 | 推荐配置 |
                 |---------|------|--------|
-                | GTX 1650/1660 | 4GB | ⚡ 轻量化 |
-                | RTX 2060/2080 | 4-6GB | ⭐ 标准 |
-                | RTX 3060/3070 | 6-8GB | ⭐ 标准 |
-                | RTX 3080/3090 | 10-24GB | 🚀 原始 |
-                | RTX 4080/4090 | 12-24GB | 🚀 原始 |
+                | GTX 1650/1660 | 4GB |  轻量化 |
+                | RTX 2060/2080 | 4-6GB |  标准 |
+                | RTX 3060/3070 | 6-8GB |  标准 |
+                | RTX 3080/3090 | 10-24GB |  原始 |
+                | RTX 4080/4090 | 12-24GB |  原始 |
                 
                 ---
                 
-                ## 📚 主要特性
+                ##  主要特性
                 
-                - 🤖 BERT Transformer 架构
-                - 📡 大规模 MIMO 支持
-                - 🗜️ CSI 压缩和预测
-                - ⚙️ 三级灵活配置
-                - 🔬 完整验证套件（13个测试）
+                -  BERT Transformer 架构
+                -  大规模 MIMO 支持
+                -  CSI 压缩和预测
+                -  三级灵活配置
+                -  完整验证套件（13个测试）
                 
                 **核心模块**:
                 - `model.py` - CSIBERT 模型定义
@@ -1391,7 +1391,7 @@ def create_interface():
                 - **FILES.md** - 文件结构说明
                 - **TESTS.md** - 测试和实验方法
                 
-                **🌐 快速链接**:
+                ** 快速链接**:
                 - GitHub: https://github.com/hsms4710-pixel/AI_TeleProject
                 """)
     
@@ -1402,10 +1402,10 @@ if __name__ == "__main__":
     app = create_interface()
     
     print("=" * 60)
-    print("🌐 CSIBERT WebUI 启动")
+    print(" CSIBERT WebUI 启动")
     print("=" * 60)
     print("📍 访问地址: http://127.0.0.1:7861")
-    print("⏹️  按 Ctrl+C 停止服务器")
+    print("  按 Ctrl+C 停止服务器")
     print("=" * 60)
     
     app.launch(

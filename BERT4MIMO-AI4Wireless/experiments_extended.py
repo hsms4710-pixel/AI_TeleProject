@@ -80,7 +80,7 @@ class AdvancedCSIBERTExperiments:
         if mask_ratios is None:
             mask_ratios = np.linspace(0.0, 0.5, 30)
         
-        print("\n🔬 Experiment 3: 掩码比率敏感性测试")
+        print("\n Experiment 3: 掩码比率敏感性测试")
         results = []
         
         for trial in tqdm(range(num_trials), desc="试验进度"):
@@ -114,7 +114,7 @@ class AdvancedCSIBERTExperiments:
         results_df = pd.DataFrame(results)
         self._plot_masking_ratio_results(results_df)
         
-        print(f"✅ 完成: {len(results)}个数据点")
+        print(f" 完成: {len(results)}个数据点")
         return results_df
     
     def _plot_masking_ratio_results(self, df):
@@ -144,7 +144,7 @@ class AdvancedCSIBERTExperiments:
         if scenario_names is None:
             scenario_names = ['Stationary', 'High-Speed', 'Urban Macro']
         
-        print("\n🌍 Experiment 2: 场景性能分析")
+        print("\n Experiment 2: 场景性能分析")
         scenario_mse = []
         
         for scenario_idx in range(min(3, len(scenario_names))):
@@ -167,7 +167,7 @@ class AdvancedCSIBERTExperiments:
         })
         
         self._plot_scenario_results(results_df)
-        print(f"✅ 完成: {len(scenario_names)}个场景")
+        print(f" 完成: {len(scenario_names)}个场景")
         
         return results_df
     
@@ -197,7 +197,7 @@ class AdvancedCSIBERTExperiments:
         if subcarrier_groups is None:
             subcarrier_groups = [(i, i + 7) for i in range(0, 64, 8)]
         
-        print("\n📶 Experiment 5: 子载波性能分析")
+        print("\n Experiment 5: 子载波性能分析")
         
         subcarrier_mse = []
         subcarrier_std = []
@@ -233,7 +233,7 @@ class AdvancedCSIBERTExperiments:
         })
         
         self._plot_subcarrier_results(results_df)
-        print(f"✅ 完成: {len(subcarrier_groups)}个子载波分组")
+        print(f" 完成: {len(subcarrier_groups)}个子载波分组")
         
         return results_df
     
@@ -304,7 +304,7 @@ class AdvancedCSIBERTExperiments:
         results_df = pd.DataFrame(results)
         self._plot_doppler_results(results_df)
         
-        print(f"✅ 完成: {len(results)}个数据点")
+        print(f" 完成: {len(results)}个数据点")
         return results_df
     
     def _plot_doppler_results(self, df):
@@ -334,7 +334,7 @@ class AdvancedCSIBERTExperiments:
         if scenario_names is None:
             scenario_names = ['Stationary', 'High-Speed', 'Urban Macro']
         
-        print("\n🔄 Experiment 10: 跨场景泛化能力")
+        print("\n Experiment 10: 跨场景泛化能力")
         cross_mse = []
         
         for train_scenario_idx in range(min(3, len(scenario_names))):
@@ -359,7 +359,7 @@ class AdvancedCSIBERTExperiments:
         cross_df = pd.DataFrame(cross_mse)
         self._plot_generalization_results(cross_df, scenario_names)
         
-        print(f"✅ 完成: {len(cross_mse)}个场景对")
+        print(f" 完成: {len(cross_mse)}个场景对")
         return cross_df
     
     def _plot_generalization_results(self, df, scenario_names):
@@ -422,7 +422,7 @@ class AdvancedCSIBERTExperiments:
         })
         
         self._plot_baseline_results(results_df)
-        print(f"✅ 完成: {len(results_df)}个模型对比")
+        print(f" 完成: {len(results_df)}个模型对比")
         
         return results_df
     
@@ -450,7 +450,7 @@ class AdvancedCSIBERTExperiments:
         if subcarrier_groups is None:
             subcarrier_groups = [(i, i + 7) for i in range(0, 64, 8)]
         
-        print("\n📊 Experiment 6: 错误分布分析")
+        print("\n Experiment 6: 错误分布分析")
         
         plt.figure(figsize=(14, 8))
         
@@ -489,7 +489,7 @@ class AdvancedCSIBERTExperiments:
         plt.savefig(os.path.join(self.output_dir, "error_distribution.png"), dpi=300)
         plt.close()
         
-        print("✅ 完成: 错误分布图已保存")
+        print(" 完成: 错误分布图已保存")
     
     # ======================== Experiment 4: 注意力机制可视化 ========================
     
@@ -506,7 +506,7 @@ class AdvancedCSIBERTExperiments:
         
         # 检查模型是否支持注意力输出
         if not hasattr(self.model, 'output_attentions'):
-            print("⚠️  模型不支持注意力权重输出，跳过此实验")
+            print("  模型不支持注意力权重输出，跳过此实验")
             return
         
         for sample_idx in tqdm(range(num_samples), desc="生成注意力图"):
@@ -522,7 +522,7 @@ class AdvancedCSIBERTExperiments:
             # 如果成功获取注意力，绘制热图
             # （这部分需要根据实际模型实现调整）
         
-        print("✅ 完成: 注意力可视化")
+        print(" 完成: 注意力可视化")
     
     def run_all_advanced_experiments(self):
         """运行所有高级实验"""
@@ -536,53 +536,53 @@ class AdvancedCSIBERTExperiments:
         try:
             results_summary['masking_ratio'] = self.experiment_masking_ratio_sensitivity()
         except Exception as e:
-            print(f"❌ Experiment 3 失败: {e}")
+            print(f" Experiment 3 失败: {e}")
         
         # Experiment 2
         try:
             results_summary['scenario'] = self.experiment_scenario_wise_performance()
         except Exception as e:
-            print(f"❌ Experiment 2 失败: {e}")
+            print(f" Experiment 2 失败: {e}")
         
         # Experiment 5
         try:
             results_summary['subcarrier'] = self.experiment_subcarrier_performance()
         except Exception as e:
-            print(f"❌ Experiment 5 失败: {e}")
+            print(f" Experiment 5 失败: {e}")
         
         # Experiment 9
         try:
             results_summary['doppler'] = self.experiment_doppler_shift_robustness()
         except Exception as e:
-            print(f"❌ Experiment 9 失败: {e}")
+            print(f" Experiment 9 失败: {e}")
         
         # Experiment 10
         try:
             results_summary['generalization'] = self.experiment_cross_scenario_generalization()
         except Exception as e:
-            print(f"❌ Experiment 10 失败: {e}")
+            print(f" Experiment 10 失败: {e}")
         
         # Experiment 8
         try:
             results_summary['baseline'] = self.experiment_baseline_comparison()
         except Exception as e:
-            print(f"❌ Experiment 8 失败: {e}")
+            print(f" Experiment 8 失败: {e}")
         
         # Experiment 6
         try:
             self.experiment_error_distribution()
         except Exception as e:
-            print(f"❌ Experiment 6 失败: {e}")
+            print(f" Experiment 6 失败: {e}")
         
         # Experiment 4
         try:
             self.experiment_attention_visualization()
         except Exception as e:
-            print(f"❌ Experiment 4 失败: {e}")
+            print(f" Experiment 4 失败: {e}")
         
         print("\n" + "="*70)
-        print("✅ 所有高级实验已完成！")
-        print(f"📊 结果已保存至 {self.output_dir}/ 目录")
+        print(" 所有高级实验已完成！")
+        print(f" 结果已保存至 {self.output_dir}/ 目录")
         print("="*70 + "\n")
         
         return results_summary

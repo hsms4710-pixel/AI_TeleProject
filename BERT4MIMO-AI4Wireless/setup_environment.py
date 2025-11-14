@@ -44,17 +44,17 @@ class EnvironmentSetup:
         print(f"   当前版本: Python {self.python_version}")
         
         if sys.version_info < (3, 8):
-            print("   ❌ 错误: 需要 Python 3.8 或更高版本")
+            print("    错误: 需要 Python 3.8 或更高版本")
             sys.exit(1)
         else:
-            print("   ✅ Python 版本满足要求")
+            print("    Python 版本满足要求")
             
     def create_venv(self):
         """创建虚拟环境"""
         self.print_step(2, "创建虚拟环境...")
         
         if self.venv_path.exists():
-            print(f"   ℹ️  虚拟环境已存在: {self.venv_path}")
+            print(f"     虚拟环境已存在: {self.venv_path}")
             return True
             
         try:
@@ -64,10 +64,10 @@ class EnvironmentSetup:
                 check=True,
                 capture_output=True
             )
-            print("   ✅ 虚拟环境创建成功")
+            print("    虚拟环境创建成功")
             return True
         except subprocess.CalledProcessError as e:
-            print(f"   ❌ 虚拟环境创建失败: {e}")
+            print(f"    虚拟环境创建失败: {e}")
             return False
             
     def upgrade_pip(self):
@@ -80,10 +80,10 @@ class EnvironmentSetup:
                 capture_output=True,
                 timeout=60
             )
-            print("   ✅ pip 升级成功")
+            print("    pip 升级成功")
             return True
         except Exception as e:
-            print(f"   ⚠️  pip 升级失败（非关键）: {e}")
+            print(f"     pip 升级失败（非关键）: {e}")
             return True  # 继续进行
             
     def install_torch(self):
@@ -101,13 +101,13 @@ class EnvironmentSetup:
         
         try:
             subprocess.run(torch_cmd, check=True, timeout=600)
-            print("   ✅ PyTorch 安装成功")
+            print("    PyTorch 安装成功")
             return True
         except subprocess.TimeoutExpired:
-            print("   ⚠️  安装超时，请检查网络连接")
+            print("     安装超时，请检查网络连接")
             return False
         except subprocess.CalledProcessError as e:
-            print(f"   ⚠️  PyTorch 安装失败: {e}")
+            print(f"     PyTorch 安装失败: {e}")
             print("   提示: 可以手动访问 https://pytorch.org 下载合适版本")
             return False
             
@@ -117,7 +117,7 @@ class EnvironmentSetup:
         
         requirements_file = self.project_root / "requirements.txt"
         if not requirements_file.exists():
-            print(f"   ❌ 找不到 requirements.txt")
+            print(f"    找不到 requirements.txt")
             return False
             
         try:
@@ -127,10 +127,10 @@ class EnvironmentSetup:
                 check=True,
                 timeout=300
             )
-            print("   ✅ 依赖安装成功")
+            print("    依赖安装成功")
             return True
         except Exception as e:
-            print(f"   ❌ 依赖安装失败: {e}")
+            print(f"    依赖安装失败: {e}")
             return False
             
     def verify_installation(self):
@@ -139,7 +139,7 @@ class EnvironmentSetup:
         try:
             result = subprocess.run(
                 [str(self.python_exe), "-c", 
-                 "import torch; import transformers; import gradio; print('✅ 所有依赖已安装')"],
+                 "import torch; import transformers; import gradio; print(' 所有依赖已安装')"],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -148,12 +148,12 @@ class EnvironmentSetup:
             print(f"   {result.stdout.strip()}")
             return True
         except Exception as e:
-            print(f"   ❌ 验证失败: {e}")
+            print(f"    验证失败: {e}")
             return False
             
     def print_next_steps(self):
         """打印后续步骤"""
-        self.print_header("✅ 环境设置完成！")
+        self.print_header(" 环境设置完成！")
         
         if self.is_windows:
             print("后续步骤：\n")
@@ -172,7 +172,7 @@ class EnvironmentSetup:
         
     def run(self):
         """运行完整的设置流程"""
-        self.print_header("🚀 BERT4MIMO 项目初始化")
+        self.print_header(" BERT4MIMO 项目初始化")
         
         print(f"项目目录: {self.project_root}")
         print(f"Python: {sys.executable}")
@@ -188,14 +188,14 @@ class EnvironmentSetup:
             pass  # 非关键，继续
             
         if not self.install_torch():
-            print("\n⚠️  PyTorch 安装失败，请手动安装后重试")
+            print("\n  PyTorch 安装失败，请手动安装后重试")
             print("   访问: https://pytorch.org\n")
             
         if not self.install_requirements():
             sys.exit(1)
             
         if not self.verify_installation():
-            print("\n⚠️  安装验证失败，请检查日志")
+            print("\n  安装验证失败，请检查日志")
             
         self.print_next_steps()
 
