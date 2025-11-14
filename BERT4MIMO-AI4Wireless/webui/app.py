@@ -43,17 +43,26 @@ class TrainingManager:
         print(f"[WebUI] {message}")
         return message
     
-    def train_model(self, epochs, batch_size, learning_rate):
+    def train_model(self, hidden_size, num_layers, num_heads, intermediate_size, max_position, epochs, batch_size, learning_rate):
         """训练模型"""
         self.training_active = True
         self.status_log = []
         
         try:
             self.log_status("🚀 开始训练模型...")
-            self.log_status(f"配置: epochs={epochs}, batch_size={batch_size}, lr={learning_rate}")
+            self.log_status(f"📊 模型配置:")
+            self.log_status(f"  Hidden Size: {hidden_size}")
+            self.log_status(f"  Num Layers: {num_layers}")
+            self.log_status(f"  Attention Heads: {num_heads}")
+            self.log_status(f"  Intermediate Size: {intermediate_size}")
+            self.log_status(f"  Max Position: {max_position}")
+            self.log_status(f"📈 训练配置:")
+            self.log_status(f"  Epochs: {epochs}")
+            self.log_status(f"  Batch Size: {batch_size}")
+            self.log_status(f"  Learning Rate: {learning_rate}")
             
             # 加载数据
-            self.log_status("📂 加载CSI数据...")
+            self.log_status("\n📂 加载CSI数据...")
             try:
                 cell_data = np.load("BERT4MIMO-AI4Wireless/foundation_model_data/csi_data_massive_mimo.npy", allow_pickle=True)
             except:
@@ -83,25 +92,29 @@ class TrainingManager:
                 torch.tensor(preprocessed_data).float(),
                 torch.tensor(preprocessed_data).float()
             )
-            loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+            loader = DataLoader(dataset, batch_size=int(batch_size), shuffle=True)
             
             # 初始化模型
-            self.log_status("🤖 初始化CSIBERT模型...")
+            self.log_status("\n🤖 初始化CSIBERT模型...")
             self.model = CSIBERT(
                 vocab_size=64,
-                hidden_size=256,
-                num_hidden_layers=4,
-                num_attention_heads=4,
-                intermediate_size=512,
-                max_position_embeddings=512
+                hidden_size=int(hidden_size),
+                num_hidden_layers=int(num_layers),
+                num_attention_heads=int(num_heads),
+                intermediate_size=int(intermediate_size),
+                max_position_embeddings=int(max_position)
             ).to(device)
+            
+            # 计算模型参数量
+            total_params = sum(p.numel() for p in self.model.parameters())
+            self.log_status(f"✓ 模型参数量: {total_params:,} ({total_params/1e6:.2f}M)")
             
             optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
             criterion = torch.nn.MSELoss()
             
             # 训练循环
-            self.log_status("🔄 开始训练循环...")
-            for epoch in range(epochs):
+            self.log_status("\n🔄 开始训练循环...")
+            for epoch in range(int(epochs)):
                 if not self.training_active:
                     self.log_status("⏹️ 训练被中断")
                     break
@@ -215,61 +228,77 @@ def create_interface():
                 
                 with gr.Row():
                     with gr.Column():
-                        # 预设配置选择
+                        # 预设配置选择（仅用于快速填充）
                         preset = gr.Radio(
                             choices=["轻量化配置", "标准配置", "原始配置"],
                             value="标准配置",
-                            label="预设配置",
-                            info="快速选择推荐配置"
+                            label="⚡ 预设配置（可选）",
+                            info="点击预设会自动填充参数，但所有参数都可自由修改"
                         )
                     
                     with gr.Column():
                         gr.Markdown("""
-                        ### 三级配置方案
+                        ### 💡 配置参考（所有参数可自定义）
                         
-                        **⚡ 轻量化** - 快速体验、学习
-                        - Hidden Size: 256
-                        - Layers: 4
-                        - Attention Heads: 4
-                        - Epochs: 10 | Batch: 16
-                        - 显存: 2GB | 训练: 5分钟
-                        - 精度: 85% | 速度: 100 fps
+                        | 配置 | Hidden | Layers | Heads | Epochs | Batch |
+                        |------|--------|--------|-------|--------|-------|
+                        | ⚡ 轻量化 | 256 | 4 | 4 | 10 | 16 |
+                        | ⭐ 标准 | 512 | 8 | 8 | 50 | 32 |
+                        | 🚀 原始 | 768 | 12 | 12 | 200 | 64 |
                         
-                        **⭐ 标准（推荐）** - 生产环境、应用
-                        - Hidden Size: 512
-                        - Layers: 8
-                        - Attention Heads: 8
-                        - Epochs: 50 | Batch: 32
-                        - 显存: 4GB | 训练: 25分钟
-                        - 精度: 92% | 速度: 50 fps
-                        
-                        **🚀 原始** - 论文发表、最高精度
-                        - Hidden Size: 768
-                        - Layers: 12
-                        - Attention Heads: 12
-                        - Epochs: 200 | Batch: 64
-                        - 显存: 8GB | 训练: 150分钟
-                        - 精度: 95% | 速度: 20 fps
+                        **提示**: 下方所有参数都可以自由调整！
                         """)
                 
-                gr.Markdown("### 自定义参数")
+                gr.Markdown("### 🎯 模型架构参数")
+                
+                with gr.Row():
+                    with gr.Column():
+                        hidden_size = gr.Slider(
+                            minimum=128, maximum=1024, value=512, step=64,
+                            label="隐藏层维度 (Hidden Size)",
+                            info="⚡轻量:256 | ⭐标准:512 | 🚀原始:768"
+                        )
+                        num_layers = gr.Slider(
+                            minimum=2, maximum=24, value=8, step=1,
+                            label="Transformer层数 (Num Layers)",
+                            info="⚡轻量:4 | ⭐标准:8 | 🚀原始:12"
+                        )
+                        num_heads = gr.Slider(
+                            minimum=2, maximum=16, value=8, step=1,
+                            label="注意力头数 (Attention Heads)",
+                            info="⚡轻量:4 | ⭐标准:8 | 🚀原始:12"
+                        )
+                    
+                    with gr.Column():
+                        intermediate_size = gr.Slider(
+                            minimum=512, maximum=4096, value=2048, step=256,
+                            label="FFN中间层维度 (Intermediate Size)",
+                            info="⚡轻量:1024 | ⭐标准:2048 | 🚀原始:3072"
+                        )
+                        max_position = gr.Slider(
+                            minimum=512, maximum=8192, value=4096, step=512,
+                            label="最大序列长度 (Max Position)",
+                            info="⚡轻量:2048 | ⭐标准:4096 | 🚀原始:4096"
+                        )
+                
+                gr.Markdown("### 📊 训练参数")
                 
                 with gr.Row():
                     with gr.Column():
                         epochs = gr.Slider(
                             minimum=1, maximum=500, value=50, step=1,
                             label="训练轮数 (Epochs)",
-                            info="轻量: 10 | 标准: 50 | 原始: 200 | 范围: 1-500"
+                            info="⚡轻量:10 | ⭐标准:50 | 🚀原始:200"
                         )
                         batch_size = gr.Slider(
                             minimum=8, maximum=256, value=32, step=8,
                             label="批大小 (Batch Size)",
-                            info="轻量: 16 | 标准: 32 | 原始: 64 | 范围: 8-256"
+                            info="⚡轻量:16 | ⭐标准:32 | 🚀原始:64"
                         )
                         learning_rate = gr.Slider(
                             minimum=1e-5, maximum=1e-2, value=1e-4, step=1e-5,
                             label="学习率 (Learning Rate)",
-                            info="原始值: 1e-4 | 范围: 1e-5 ~ 1e-2"
+                            info="通用: 1e-4 | 范围: 1e-5 ~ 1e-2"
                         )
                     
                     with gr.Column():
@@ -300,23 +329,23 @@ def create_interface():
                 )
                 
                 def apply_preset(preset_name):
-                    """根据预设返回参数"""
+                    """根据预设返回所有参数"""
                     presets = {
-                        "轻量化配置": (10, 16, 1e-4),
-                        "标准配置": (50, 32, 1e-4),
-                        "原始配置": (200, 64, 1e-4)
+                        "轻量化配置": (256, 4, 4, 1024, 2048, 10, 16, 1e-4),
+                        "标准配置": (512, 8, 8, 2048, 4096, 50, 32, 1e-4),
+                        "原始配置": (768, 12, 12, 3072, 4096, 200, 64, 1e-4)
                     }
-                    return presets.get(preset_name, (50, 32, 1e-4))
+                    return presets.get(preset_name, (512, 8, 8, 2048, 4096, 50, 32, 1e-4))
                 
                 preset.change(
                     fn=lambda p: apply_preset(p),
                     inputs=preset,
-                    outputs=[epochs, batch_size, learning_rate]
+                    outputs=[hidden_size, num_layers, num_heads, intermediate_size, max_position, epochs, batch_size, learning_rate]
                 )
                 
                 custom_train_btn.click(
                     fn=manager.train_model,
-                    inputs=[epochs, batch_size, learning_rate],
+                    inputs=[hidden_size, num_layers, num_heads, intermediate_size, max_position, epochs, batch_size, learning_rate],
                     outputs=custom_status
                 )
                 
@@ -327,69 +356,166 @@ def create_interface():
             
             # 标签3: 生成数据
             with gr.TabItem("🔧 生成数据"):
-                gr.Markdown("## CSI数据生成工具")
+                gr.Markdown("## CSI数据生成工具（Massive MIMO 5G NR）")
                 
+                gr.Markdown("### 📡 基本参数")
                 with gr.Row():
                     with gr.Column():
-                        num_samples = gr.Slider(
-                            minimum=10, maximum=10000, value=1000, step=10,
-                            label="生成样本数"
+                        num_cells = gr.Slider(
+                            minimum=1, maximum=50, value=10, step=1,
+                            label="基站数量 (Num Cells)",
+                            info="默认: 10 | 范围: 1-50"
                         )
-                        num_antennas = gr.Slider(
-                            minimum=8, maximum=256, value=32, step=8,
-                            label="天线数"
+                        num_ues = gr.Slider(
+                            minimum=10, maximum=500, value=200, step=10,
+                            label="每小区用户数 (UEs per Cell)",
+                            info="默认: 200 | 范围: 10-500"
                         )
                         num_subcarriers = gr.Slider(
-                            minimum=32, maximum=1024, value=64, step=32,
-                            label="子载波数"
+                            minimum=12, maximum=1024, value=64, step=12,
+                            label="子载波数 (Num Subcarriers)",
+                            info="默认: 64 | 5G NR: 12/24/48/64/128/256/512/1024"
                         )
                     
                     with gr.Column():
+                        massive_mimo_antennas = gr.Slider(
+                            minimum=8, maximum=256, value=64, step=8,
+                            label="基站天线数 (BS Antennas - Massive MIMO)",
+                            info="默认: 64 | 范围: 8-256"
+                        )
+                        num_receive_antennas = gr.Slider(
+                            minimum=1, maximum=16, value=4, step=1,
+                            label="用户端天线数 (UE Antennas)",
+                            info="默认: 4 | 范围: 1-16"
+                        )
+                
+                gr.Markdown("### 📶 信道参数")
+                with gr.Row():
+                    with gr.Column():
+                        nr_sample_rate = gr.Slider(
+                            minimum=1e6, maximum=100e6, value=30.72e6, step=1e6,
+                            label="5G NR 采样率 (Sample Rate, Hz)",
+                            info="默认: 30.72 MHz | 范围: 1-100 MHz"
+                        )
+                        snr_nr = gr.Slider(
+                            minimum=0, maximum=40, value=25, step=1,
+                            label="信噪比 (SNR, dB)",
+                            info="默认: 25 dB | 范围: 0-40 dB"
+                        )
+                    
+                    with gr.Column():
+                        speed_high = gr.Slider(
+                            minimum=0, maximum=500, value=120, step=10,
+                            label="高速场景用户速度 (Speed, km/h)",
+                            info="默认: 120 km/h | 范围: 0-500 km/h"
+                        )
+                        carrier_freq = gr.Slider(
+                            minimum=0.7e9, maximum=100e9, value=3.5e9, step=0.1e9,
+                            label="载波频率 (Carrier Frequency, Hz)",
+                            info="默认: 3.5 GHz | 5G NR: 0.7-100 GHz"
+                        )
+                
+                with gr.Row():
+                    with gr.Column():
                         gr.Markdown("""
-                        ### 数据生成参数
+                        ### 📋 生成说明
                         
-                        - **样本数**: 生成的CSI矩阵数量
-                        - **天线数**: MIMO系统天线数
-                        - **子载波数**: OFDM子载波数
+                        **数据结构**: 
+                        - 多小区、多用户、多场景
+                        - 3种场景: 静止、高速、城市宏小区
+                        - 维度: (基站数 × 用户数 × 场景数)
                         
-                        生成的数据将保存到：
-                        `foundation_model_data/generated_csi.npy`
+                        **文件输出**: 
+                        `foundation_model_data/csi_data_massive_mimo.mat`
+                        
+                        **预计时间**: 取决于参数规模
+                        - 默认配置(10×200): ~5-10分钟
+                        - 大规模(50×500): ~30-60分钟
+                        """)
+                    
+                    with gr.Column():
+                        gr.Markdown("""
+                        ### 💡 参数建议
+                        
+                        **快速测试**:
+                        - 基站: 2, 用户: 20
+                        
+                        **标准训练**:
+                        - 基站: 10, 用户: 200
+                        
+                        **大规模数据集**:
+                        - 基站: 50, 用户: 500
+                        
+                        **注意**: MATLAB需要安装
+                        - Communications Toolbox
+                        - 5G Toolbox (推荐)
                         """)
                 
                 gen_btn = gr.Button("🚀 生成数据", variant="primary", size="lg")
                 gen_status = gr.Textbox(
                     label="生成状态",
                     interactive=False,
-                    lines=8
+                    lines=10
                 )
                 
-                def generate_data(samples, antennas, subcarriers):
+                def generate_data(cells, ues, subcarriers, bs_antennas, ue_antennas, sample_rate, snr, speed, freq):
+                    """生成CSI数据（调用MATLAB脚本）"""
                     try:
-                        data_dir = PROJECT_ROOT / "BERT4MIMO-AI4Wireless/foundation_model_data"
-                        data_dir.mkdir(parents=True, exist_ok=True)
+                        return f"""🚀 正在准备生成数据...
                         
-                        # 生成随机CSI数据
-                        csi_data = np.random.randn(samples, antennas, subcarriers, 2)
-                        save_path = data_dir / "generated_csi.npy"
-                        np.save(save_path, csi_data)
-                        
-                        return f"""✅ 数据生成完成！
-                        
-📊 数据统计:
-- 样本数: {samples}
-- 天线数: {antennas}
-- 子载波数: {subcarriers}
-- 数据形状: ({samples}, {antennas}, {subcarriers}, 2)
-- 文件大小: {csi_data.nbytes / (1024*1024):.2f} MB
+📊 数据生成参数:
+════════════════════════════════════════
+基本参数:
+  • 基站数量: {int(cells)}
+  • 每小区用户数: {int(ues)}
+  • 子载波数: {int(subcarriers)}
 
-📁 保存位置: {save_path}
+天线配置:
+  • 基站天线数 (Massive MIMO): {int(bs_antennas)}
+  • 用户端天线数: {int(ue_antennas)}
+
+信道参数:
+  • 采样率: {sample_rate/1e6:.2f} MHz
+  • 信噪比: {snr} dB
+  • 高速用户速度: {speed} km/h
+  • 载波频率: {freq/1e9:.2f} GHz
+
+📝 预计生成数据:
+  • 总样本数: {int(cells)} × {int(ues)} × 3场景 = {int(cells * ues * 3)}
+  • 数据维度: ({int(subcarriers)}, {int(bs_antennas)}, {int(ue_antennas)})
+════════════════════════════════════════
+
+⚠️ 注意: 此功能需要 MATLAB 和相关工具箱
+
+📝 手动执行步骤:
+1. 打开 MATLAB
+2. 修改 data_generator.m 中的参数:
+   numCells = {int(cells)};
+   numUEs = {int(ues)};
+   numSubcarriers = {int(subcarriers)};
+   massiveMIMONumAntennas = {int(bs_antennas)};
+   numReceiveAntennas = {int(ue_antennas)};
+   nrSampleRate = {sample_rate};
+   snrNR = {snr};
+   speedHigh = {speed};
+   fc = {freq};
+
+3. 运行: run('data_generator.m')
+4. 等待生成完成
+
+💡 或使用命令行:
+   matlab -batch "run('data_generator.m')"
+
+📁 生成文件将保存到:
+   foundation_model_data/csi_data_massive_mimo.mat
 """
                     except Exception as e:
                         return f"❌ 生成错误: {str(e)}"
                 
                 gen_btn.click(
                     fn=generate_data,
-                    inputs=[num_samples, num_antennas, num_subcarriers],
+                    inputs=[num_cells, num_ues, num_subcarriers, massive_mimo_antennas, num_receive_antennas, 
+                            nr_sample_rate, snr_nr, speed_high, carrier_freq],
                     outputs=gen_status
                 )
             
