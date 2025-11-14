@@ -1,351 +1,206 @@
 # BERT4MIMO - AI for Wireless Communications
 
-基于 BERT 的大规模 MIMO 无线通信 CSI 处理框架。
+基于 BERT 的大规模 MIMO 无线通信 CSI 处理框架
 
-## 🎯 项目特性
+## 🎯 核心功能
 
-- **🤖 BERT 架构**：采用 Transformer 编码器处理信道状态信息 (CSI)
-- **📡 大规模 MIMO**：支持多小区、多用户、多天线场景
-- **🚀 WebUI 界面**：可视化训练管理界面
-- **⚙️ 灵活配置**：支持轻量级到高性能多种模型配置
-- **🔬 完整验证**：13 个验证和实验方法
+- **🤖 BERT架构** - Transformer编码器处理信道状态信息(CSI)
+- **📡 大规模MIMO** - 支持多小区、多用户、多天线场景  
+- **🚀 WebUI界面** - 可视化训练、实验、数据生成
+- **⚙️ 多级配置** - 轻量化(256)、标准(512)、原始(768)三种模型
+- **🔬 完整验证** - 5个基础测试 + 8个高级实验
 
-## 🌟 核心应用
+## 🌟 应用价值
 
-训练好的 CSIBERT 模型可以：
-- 📈 **预测信道状态** - 减少导频开销 60%，提升频谱效率 30%
-- 🗜️ **压缩 CSI 反馈** - 压缩比 10:1～50:1，反馈开销降低 90%+
-- 🔧 **增强信道估计** - 去噪提升精度 50%，改善边缘用户体验
-- 🎯 **优化波束成形** - 支持更多用户，提升系统容量 20%+
+- **📈 预测信道** - 减少导频开销60%，提升频谱效率30%
+- **🗜️ 压缩反馈** - 压缩比10:1～50:1，反馈开销降低90%+
+- **🔧 增强估计** - 去噪提升精度50%，改善边缘用户体验
+- **🎯 优化波束** - 提升系统容量20%+
 
 ## 🚀 快速开始
 
-### 一键启动（推荐，最简单）
+### 方法1：一键启动（推荐）
 ```bash
 # Windows
 RUN.bat
 
-# Linux/Mac
+# Linux/Mac  
 bash RUN.sh
 ```
 
-自动完成：虚拟环境创建 → 依赖安装 → WebUI 启动
+自动完成：虚拟环境创建 → 依赖安装 → WebUI启动
 
 访问：http://127.0.0.1:7861
 
-### 命令行使用
+### 方法2：命令行
 ```bash
-# 训练模型
+# 手动创建虚拟环境
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # Linux/Mac
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 启动WebUI
+python webui/app.py
+
+# 或直接训练
 python train.py
-
-# 完整验证（13个测试）
-python run_all_experiments.py --mode all
-
-# 快速验证（5个基础测试）
-python model_validation.py
 ```
 
 ## 📁 项目结构
 
 ```
 BERT4MIMO-AI4Wireless/
-├── 🤖 核心模块
-│   ├── model.py                     # CSIBERT 模型定义
-│   ├── train.py                     # 训练脚本
-│   ├── model_validation.py          # 基础验证 (5个测试)
-│   ├── experiments_extended.py      # 高级实验 (8个)
-│   ├── run_all_experiments.py       # 统一实验运行器
-│   └── data_generator.m             # MATLAB 数据生成
-│
-├── 🌐 WebUI 界面
-│   └── webui/app.py                 # Gradio 应用
-│
-├── 📚 文档 (4个核心文档)
-│   ├── README.md                    # 项目介绍 (本文件)
-│   ├── USAGE.md                     # 使用指南 (如何使用)
-│   ├── FILES.md                     # 文件说明 (文件用途)
-│   └── TESTS.md                     # 测试说明 (验证方法)
-│
-├── 💾 数据与结果
-│   ├── foundation_model_data/       # 训练数据目录
-│   ├── checkpoints/                 # 模型检查点
-│   └── validation_results/          # 验证结果
-│
-├── 🔧 启动和配置
-│   ├── RUN.bat / RUN.sh            # 一键启动脚本
-│   ├── setup_environment.py         # 环境初始化
-│   └── requirements.txt             # 依赖列表
-│
-└── 📋 其他
-    ├── MODEL_APPLICATIONS_QUICK.md  # 模型应用快速指南
-    └── MODEL_APPLICATIONS.md        # 模型应用详解
+├── webui/
+│   ├── app.py              # WebUI主程序（可独立运行）
+│   └── __init__.py
+├── checkpoints/            # 模型检查点
+├── foundation_model_data/  # 训练数据
+├── validation_results/     # 实验结果
+├── docs/                   # 详细文档
+│   ├── USAGE.md           # 使用指南
+│   ├── FILES.md           # 文件说明
+│   └── TESTS.md           # 测试说明
+├── model.py               # CSIBERT模型定义
+├── train.py               # 训练脚本
+├── model_validation.py    # 基础验证（5个测试）
+├── experiments_extended.py # 高级实验（8个实验）
+├── run_all_experiments.py  # 批量实验
+├── data_generator.m       # MATLAB数据生成
+├── RUN.bat / RUN.sh       # 一键启动脚本
+└── requirements.txt       # Python依赖
 ```
 
-## 📖 文档导航
+## 🎨 WebUI 四大功能
 
-| 文档 | 用途 |
-|------|------|
-| **README.md** | 项目介绍和总结（本文件） |
-| **USAGE.md** | 如何使用各个模块 |
-| **FILES.md** | 各个文件的作用和用途 |
-| **TESTS.md** | 所有测试和实验方法 |
+### 1. ⚡ 一键训练
+完整自动化流程：数据生成 → 预处理 → 训练 → 测试
+- 支持全参数自定义（8个参数可调）
+- 三种预设配置（轻量化/标准/原始）
 
-## 🎯 核心功能
+### 2. 📂 导入数据训练
+自定义训练：
+- 导入已有数据
+- 灵活参数配置
+- 实时训练监控
 
-### 1. 模型训练
-```bash
-python train.py --batch_size 32 --max_epochs 200
-```
-- 支持 GPU/CPU 自动选择
-- 支持自定义参数
-- 自动保存最优模型
+### 3. 🔧 生成数据
+MATLAB数据生成器：
+- 9个可配置参数
+- 支持多场景（小区数、用户数、子载波等）
 
-### 2. 模型验证（5个基础测试）
-```bash
-python model_validation.py
-```
-- 重构误差
-- 预测准确度
-- SNR 鲁棒性
-- 压缩率
-- 推理速度
-
-### 3. 高级实验（8个）
-```bash
-python run_all_experiments.py --mode advanced
-```
-- 掩码比率敏感性
-- 场景性能分析
-- 子载波性能
-- 多普勒鲁棒性
-- 跨场景泛化
-- 基线对比
-- 注意力可视化
-- 错误分布分析
-
-### 4. WebUI 训练界面
-```bash
-python -m webui.app
-```
-三种训练方案：
-- 一键训练
-- 导入数据训练
-- 仅生成数据
-
-### 5. 数据生成
-```bash
-matlab -batch "run('data_generator.m')"
-```
-生成 ~1.4GB 的 CSI 训练数据
-
-## 🔧 环境要求
-
-- **Python**：3.8+
-- **PyTorch**：2.0+
-- **GPU**（推荐）：CUDA 12.8+
-- **MATLAB**（可选）：R2020a+ (用于数据生成)
+### 4. 🔬 进行实验
+智能实验管理：
+- **自动检测已训练模型**
+- **多模型选择和切换**
+- **基础实验**（5项）：重构误差、预测准确度、SNR鲁棒性、压缩率、推理速度
+- **高级实验**（8项）：掩码敏感性、场景性能、子载波分析、多普勒鲁棒性、跨场景泛化、基线对比、误差分布、注意力可视化
+- **批量运行**：单项/批量/全部13项实验
+- **自动生成**：可视化图表 + 分析报告
 
 ## 🎯 三级配置方案
 
-CSIBERT 提供三个预设配置，满足不同硬件和需求：
+| 参数 | 轻量化⚡ | 标准⭐ | 原始🚀 | 说明 |
+|-----|---------|--------|--------|------|
+| Hidden Size | 256 | 512 | 768 | 隐藏层维度 |
+| Num Layers | 4 | 8 | 12 | Transformer层数 |
+| Attention Heads | 4 | 8 | 12 | 注意力头数 |
+| Intermediate | 1024 | 2048 | 3072 | 前馈网络维度 |
+| Epochs | 10 | 50 | 200 | 训练轮数 |
+| Batch Size | 16 | 32 | 64 | 批次大小 |
+| Learning Rate | 1e-4 | 1e-4 | 1e-4 | 学习率 |
 
-| 配置 | 场景 | 硬件需求 | 参数量 | 训练时间 | 推理速度 | 精度 |
-|------|------|---------|--------|---------|---------|------|
-| **轻量化 ⚡** | 快速体验、学习 | 4GB | 2.8M | 5分钟 | 100 fps | 85% |
-| **标准 ⭐** | 生产环境、应用 | 4-8GB | 11.2M | 25分钟 | 50 fps | 92% |
-| **原始 🚀** | 论文发表、高精度 | 8GB+ | 25.3M | 150分钟 | 20 fps | 95% |
+**硬件建议**：
+- 轻量化：4GB显存，训练30分钟
+- 标准：8GB显存，训练2小时（推荐）
+- 原始：16GB显存，训练8小时
 
-**详细配置对比**请查看 [USAGE.md](USAGE.md) 的"模型配置指南"章节
+## 📊 实验功能
 
-## 📊 性能指标
+### 智能模型管理
+- ✅ 启动时自动扫描checkpoints目录
+- 🔄 自动加载最新模型
+- 📋 下拉列表选择不同模型
+- 🔍 实时显示模型配置信息
 
-| 指标 | 轻量化 | 标准 | 原始 |
-|------|--------|------|------|
-| 显存占用（推理） | ~1.5GB | ~3.5GB | ~6.5GB |
-| 模型参数 | 2.8M | 11.2M | 25.3M |
-| 推理速度 | 100 fps | 50 fps | 20 fps |
-| 模型精度 | 85% | 92% | 95% |
-
-## 📈 测试结果
-
-### 基础验证
-✅ 5 个测试全部通过（2-5分钟）
-
-### 高级实验
-✅ 8 个实验全部完成（8-25分钟）
-
-### 完整验证
-✅ 13 个测试完整执行（10-30分钟）
-
-## 🚀 使用流程
-
-### 步骤 1：初始化环境
+### 基础测试（快速验证）
 ```bash
-bash RUN.sh  # 或 RUN.bat (Windows)
-```
-
-### 步骤 2：启动 WebUI
-自动打开 http://127.0.0.1:7861
-
-### 步骤 3：训练模型
-选择"方案2：导入数据训练"并点击训练
-
-### 步骤 4：验证结果
-```bash
-python run_all_experiments.py --mode all
-```
-
-### 步骤 5：查看报告
-结果保存在 `validation_results/` 目录
-
-## 💡 如何选择配置？
-
-**显卡不清楚？** 运行：
-```bash
-python -c "import torch; print(torch.cuda.get_device_name(0))"
-```
-
-### 硬件推荐
-
-| 显卡型号 | 显存 | 推荐配置 |
-|---------|------|--------|
-| GTX 1650/1660 | 4GB | 轻量化 ⚡ |
-| RTX 2060/2080 | 4-6GB | 标准 ⭐ |
-| RTX 3060/3070 | 6-8GB | 标准 ⭐ |
-| RTX 3080/3090 | 10-24GB | 原始 🚀 |
-| RTX 4070/4080 | 12-16GB | 原始 🚀 |
-
-### 场景推荐
-
-- **轻量化 ⚡**：快速测试、学习、显存有限
-- **标准 ⭐**：**推荐**生产应用、常规研究
-- **原始 🚀**：论文发表、追求最优精度
-
-详见 [USAGE.md](USAGE.md) 的"配置选择指南"
-
-## 💡 技术亮点
-
-✨ **Transformer 架构**
-- 相比 CNN/LSTM，性能提升 50%+
-- 支持长程依赖建模
-- 并行化程度高
-
-✨ **自监督学习**
-- 掩码预测任务
-- 无需标注数据
-- 自适应微调
-
-✨ **完整验证体系**
-- 13 个验证和实验方法
-- 覆盖性能、鲁棒性、泛化能力
-- 自动生成报告
-
-✨ **用户友好的界面**
-- WebUI 可视化训练
-- 一键启动脚本
-- 详细文档
-
-## 🎓 学习资源
-
-- **快速上手**：按 USAGE.md 学习各模块
-- **深入理解**：查看 FILES.md 了解文件结构
-- **验证方法**：参考 TESTS.md 理解测试原理
-- **应用示例**：查看 MODEL_APPLICATIONS_QUICK.md
-
-## 🔗 相关链接
-
-- 📖 [使用指南](USAGE.md) - 如何使用各个模块
-- 📋 [文件说明](FILES.md) - 各个文件的作用
-- 🧪 [测试说明](TESTS.md) - 验证和实验方法
-- 🤖 [模型应用](MODEL_APPLICATIONS_QUICK.md) - 模型能做什么
-
-## 📝 命令速查
-
-```bash
-# 一键启动
-bash RUN.sh
-
-# WebUI 训练
-python -m webui.app
-
-# 命令行训练
-python train.py
-
-# 基础验证 (快速)
 python model_validation.py
+```
+1. **重构误差** - MSE/MAE分析
+2. **预测准确度** - 时序预测能力
+3. **SNR鲁棒性** - 抗噪声性能  
+4. **压缩率** - 数据压缩效率
+5. **推理速度** - 计算性能测试
 
-# 完整验证 (推荐)
+### 高级实验（深度分析）
+```bash
 python run_all_experiments.py --mode all
-
-# 生成数据
-matlab -batch "run('data_generator.m')"
-
-# 初始化环境
-python setup_environment.py
 ```
+1. **掩码比率敏感性** - 最优掩码率分析
+2. **场景性能分析** - 不同场景表现
+3. **子载波性能** - 频域分析
+4. **多普勒鲁棒性** - 高速场景测试
+5. **跨场景泛化** - 泛化能力评估
+6. **基线对比** - 与传统方法比较
+7. **错误分布** - 误差统计分析
+8. **注意力可视化** - 模型注意力热图
 
-## 🎯 典型使用场景
+### 批量运行
+WebUI支持：
+- 单项实验运行
+- 批量运行（5项基础测试或8项高级实验）
+- 全部运行（13项完整测试）
+- 自动生成图表和报告（保存到validation_results/）
 
-### 场景 1：快速体验（15分钟）
-```bash
-bash RUN.sh → 选择方案2训练 → 完成！
-```
+## 🛠️ 依赖环境
 
-### 场景 2：完整评估（60分钟）
-```bash
-python train.py → python run_all_experiments.py --mode all
-```
+**Python**: 3.8+  
+**PyTorch**: 2.0+  
+**CUDA**: 11.8+ (GPU推荐)
 
-### 场景 3：模型开发
-```python
-from model import CSIBERT
-model = CSIBERT(feature_dim=1024, hidden_size=256)
-# 自己实现训练逻辑
-```
+关键依赖：
+- `torch` - 深度学习框架
+- `transformers` - BERT模型
+- `gradio` - WebUI
+- `scipy` - 数据处理
+- `matplotlib` - 可视化
 
-### 场景 4：生成新数据
-```bash
-matlab -batch "run('data_generator.m')" → python train.py
-```
+完整依赖见 `requirements.txt`
 
-## 📞 常见问题
+## 📖 详细文档
 
-**Q：模型训练很慢？**  
-A：使用 GPU，检查 CUDA 版本
+- **[使用指南](docs/USAGE.md)** - 详细使用说明和配置参数
+- **[文件说明](docs/FILES.md)** - 各文件功能详解
+- **[测试说明](docs/TESTS.md)** - 实验方法和结果解读
 
-**Q：WebUI 无法启动？**  
-A：检查端口 7861，或改为 `python -m webui.app --server_port 8000`
+## 🔧 常见问题
 
-**Q：没有 MATLAB 怎么办？**  
-A：使用预生成的数据，或用 Python 重新实现数据生成
+**Q: WebUI启动失败？**  
+A: 检查虚拟环境激活，依赖完整安装。运行`RUN.bat`自动修复。
 
-**Q：如何修改模型参数？**  
-A：编辑 `train.py` 或使用命令行参数
+**Q: 模型训练太慢？**  
+A: 使用轻量化配置，或减少epochs。确保使用GPU。
 
-## 📊 项目统计
+**Q: 实验找不到模型？**  
+A: 点击"重新扫描"按钮刷新模型列表，或先训练模型。
 
-- **核心模块**：6 个
-- **文档**：4 个（精简）+ 2 个应用指南
-- **测试方法**：13 个
-- **代码行数**：~2500 行
-- **文档行数**：~3500 行
+**Q: 如何比较不同配置？**  
+A: 训练多个模型（使用不同配置），在实验页面切换加载对比。
 
-## ✅ 最后检查清单
+**Q: 数据生成失败？**  
+A: MATLAB数据生成需要Communications Toolbox。可使用已有数据或生成随机演示数据。
 
-- ✓ 一键启动脚本工作正常
-- ✓ WebUI 可访问并可训练
-- ✓ 所有测试通过
-- ✓ 文档完整清晰
-- ✓ 代码已优化并注释完善
-- ✓ 依赖列表准确
-- ✓ 性能指标达到预期
+## 📝 许可证
 
----
+MIT License
 
-**准备好开始了吗？** 
+## 🤝 贡献
 
-👉 查看 [USAGE.md](USAGE.md) 学习如何使用  
-👉 查看 [FILES.md](FILES.md) 了解文件结构  
-👉 查看 [TESTS.md](TESTS.md) 理解验证方法  
+欢迎提交 Issue 和 Pull Request！
 
-🚀 **运行 `bash RUN.sh` 开始！**
+## 📧 联系
+
+项目地址：https://github.com/hsms4710-pixel/AI_TeleProject

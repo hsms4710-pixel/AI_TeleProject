@@ -34,8 +34,56 @@ class TrainingManager:
     
     def __init__(self):
         self.model = None
+        self.model_config = None
+        self.current_model_path = None
         self.training_active = False
         self.status_log = []
+        
+        # 启动时扫描可用模型
+        self.available_models = self.scan_available_models()
+        
+        # 自动加载最新模型（如果存在）
+        if self.available_models:
+            self.auto_load_model(self.available_models[0])
+    
+    def scan_available_models(self):
+        """扫描checkpoints目录下所有可用的模型"""
+        checkpoint_dir = PROJECT_ROOT / "checkpoints"
+        if not checkpoint_dir.exists():
+            return []
+        
+        models = []
+        for model_file in checkpoint_dir.glob("*.pt"):
+            try:
+                # 尝试加载模型获取信息
+                checkpoint = torch.load(model_file, map_location='cpu')
+                model_info = {
+                    'path': str(model_file),
+                    'name': model_file.name,
+                    'hidden_size': checkpoint.get('hidden_size', 'Unknown'),
+                    'num_layers': checkpoint.get('num_hidden_layers', 'Unknown'),
+                    'num_heads': checkpoint.get('num_attention_heads', 'Unknown'),
+                    'feature_dim': checkpoint.get('feature_dim', 'Unknown'),
+                    'modified_time': model_file.stat().st_mtime
+                }
+                models.append(model_info)
+            except Exception as e:
+                print(f"[WebUI] 跳过无效模型文件: {model_file.name} - {str(e)}")
+        
+        # 按修改时间降序排序（最新的在前面）
+        models.sort(key=lambda x: x['modified_time'], reverse=True)
+        return models
+    
+    def get_model_list_display(self):
+        """获取模型列表的显示格式"""
+        if not self.available_models:
+            return []
+        
+        display_list = []
+        for model in self.available_models:
+            display_name = f"{model['name']} (H:{model['hidden_size']}, L:{model['num_layers']}, A:{model['num_heads']})"
+            display_list.append(display_name)
+        return display_list
     
     def log_status(self, message):
         """记录状态信息"""
@@ -43,7 +91,99 @@ class TrainingManager:
         print(f"[WebUI] {message}")
         return message
     
-    def one_click_train(self):
+    def auto_load_model(self, model_info=None):
+        """
+        自动加载指定的模型
+        
+        Args:
+            model_info: 模型信息字典，如果为None则尝试加载best_model.pt
+        """
+        if model_info is None:
+            # 默认加载best_model.pt
+            checkpoint_path = PROJECT_ROOT / "checkpoints" / "best_model.pt"
+            if not checkpoint_path.exists():
+                self.log_status("ℹ️ 未发现模型文件")
+                return False
+        else:
+            checkpoint_path = Path(model_info['path'])
+        
+        try:
+            self.log_status(f"🔍 正在加载模型: {checkpoint_path.name}")
+            checkpoint = torch.load(checkpoint_path, map_location=device)
+            
+            # 提取模型配置
+            self.model_config = {
+                'feature_dim': checkpoint.get('feature_dim'),
+                'hidden_size': checkpoint.get('hidden_size', 512),
+                'num_hidden_layers': checkpoint.get('num_hidden_layers', 8),
+                'num_attention_heads': checkpoint.get('num_attention_heads', 8)
+            }
+            
+            # 初始化模型（CSIBERT只接受这4个参数）
+            self.model = CSIBERT(
+                feature_dim=self.model_config['feature_dim'],
+                hidden_size=self.model_config['hidden_size'],
+                num_hidden_layers=self.model_config['num_hidden_layers'],
+                num_attention_heads=self.model_config['num_attention_heads']
+            ).to(device)
+            
+            # 加载模型权重
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+            self.model.eval()
+            
+            self.current_model_path = str(checkpoint_path)
+            
+            self.log_status(f"✅ 模型加载成功: {checkpoint_path.name}")
+            self.log_status(f"📊 配置: Hidden={self.model_config['hidden_size']}, "
+                           f"Layers={self.model_config['num_hidden_layers']}, "
+                           f"Heads={self.model_config['num_attention_heads']}")
+            return True
+            
+        except Exception as e:
+            self.log_status(f"⚠️ 模型加载失败: {str(e)}")
+            self.model = None
+            self.model_config = None
+            self.current_model_path = None
+            return False
+    
+    def load_model_by_name(self, model_display_name):
+        """根据显示名称加载模型"""
+        if not model_display_name:
+            return "❌ 请选择一个模型"
+        
+        # 从显示名称中提取实际文件名
+        model_name = model_display_name.split(" (")[0]
+        
+        # 查找对应的模型信息
+        model_info = None
+        for model in self.available_models:
+            if model['name'] == model_name:
+                model_info = model
+                break
+        
+        if model_info is None:
+            return "❌ 未找到指定的模型"
+        
+        # 加载模型
+        if self.auto_load_model(model_info):
+            return f"✅ 成功加载模型: {model_name}\n\n{self.get_model_status()}"
+        else:
+            return f"❌ 模型加载失败"
+    
+    def get_model_status(self):
+        """获取当前模型状态"""
+        if self.model is not None:
+            config_str = f"Hidden={self.model_config['hidden_size']}, Layers={self.model_config['num_hidden_layers']}, Heads={self.model_config['num_attention_heads']}"
+            model_name = Path(self.current_model_path).name if self.current_model_path else "Unknown"
+            return f"✅ 已加载模型\n📁 文件: {model_name}\n⚙️ 配置: {config_str}"
+        else:
+            model_count = len(self.available_models)
+            if model_count > 0:
+                return f"❌ 未加载模型\n📊 可用模型: {model_count} 个\n💡 请从下方列表选择模型加载"
+            else:
+                return "❌ 未加载模型\n📂 checkpoints目录中无可用模型\n💡 请先训练模型"
+    
+    def one_click_train(self, hidden_size, num_layers, num_heads, intermediate_size, max_position, epochs, batch_size, learning_rate):
         """一键训练：数据生成 → 数据处理 → 模型训练 → 测试"""
         self.training_active = True
         self.status_log = []
@@ -103,46 +243,45 @@ class TrainingManager:
             
             # 步骤3: 模型训练
             self.log_status("\n🤖 步骤 3/4: 模型训练...")
-            self.log_status("📊 使用标准配置:")
-            self.log_status("  - Hidden Size: 512")
-            self.log_status("  - Num Layers: 8")
-            self.log_status("  - Attention Heads: 8")
-            self.log_status("  - Intermediate Size: 2048")
-            self.log_status("  - Epochs: 50")
-            self.log_status("  - Batch Size: 32")
-            self.log_status("  - Learning Rate: 1e-4")
+            self.log_status("📊 使用配置:")
+            self.log_status(f"  - Hidden Size: {hidden_size}")
+            self.log_status(f"  - Num Layers: {num_layers}")
+            self.log_status(f"  - Attention Heads: {num_heads}")
+            self.log_status(f"  - Intermediate Size: {intermediate_size}")
+            self.log_status(f"  - Max Position: {max_position}")
+            self.log_status(f"  - Epochs: {epochs}")
+            self.log_status(f"  - Batch Size: {batch_size}")
+            self.log_status(f"  - Learning Rate: {learning_rate}")
             
             # 准备数据加载器
-            batch_size = 32
             dataset = TensorDataset(
                 torch.tensor(preprocessed_data).float(),
                 torch.tensor(preprocessed_data).float()
             )
-            loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+            loader = DataLoader(dataset, batch_size=int(batch_size), shuffle=True)
             
-            # 初始化模型（标准配置）
+            # 初始化模型（使用传入参数）
             feature_dim = preprocessed_data.shape[-1]
             self.model = CSIBERT(
                 vocab_size=64,
-                hidden_size=512,
-                num_hidden_layers=8,
-                num_attention_heads=8,
-                intermediate_size=2048,
-                max_position_embeddings=4096
+                hidden_size=int(hidden_size),
+                num_hidden_layers=int(num_layers),
+                num_attention_heads=int(num_heads),
+                intermediate_size=int(intermediate_size),
+                max_position_embeddings=int(max_position)
             ).to(device)
             
             total_params = sum(p.numel() for p in self.model.parameters())
             self.log_status(f"✓ 模型参数量: {total_params:,} ({total_params/1e6:.2f}M)")
             
-            optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=float(learning_rate))
             criterion = torch.nn.MSELoss()
             
             # 训练循环
-            epochs = 50
-            self.log_status(f"\n🔄 开始训练 {epochs} 轮...")
+            self.log_status(f"\n🔄 开始训练 {int(epochs)} 轮...")
             
             best_loss = float('inf')
-            for epoch in range(epochs):
+            for epoch in range(int(epochs)):
                 if not self.training_active:
                     self.log_status("⏹️ 训练被中断")
                     break
@@ -166,7 +305,7 @@ class TrainingManager:
                 
                 # 只显示关键epoch
                 if (epoch + 1) % 5 == 0 or epoch == 0:
-                    self.log_status(f"✓ Epoch {epoch+1}/{epochs} - Loss: {avg_loss:.6f}")
+                    self.log_status(f"✓ Epoch {epoch+1}/{int(epochs)} - Loss: {avg_loss:.6f}")
                 
                 # 保存最佳模型
                 if avg_loss < best_loss:
@@ -179,10 +318,11 @@ class TrainingManager:
                         'epoch': epoch + 1,
                         'loss': avg_loss,
                         'config': {
-                            'hidden_size': 512,
-                            'num_layers': 8,
-                            'num_heads': 8,
-                            'intermediate_size': 2048
+                            'hidden_size': int(hidden_size),
+                            'num_layers': int(num_layers),
+                            'num_heads': int(num_heads),
+                            'intermediate_size': int(intermediate_size),
+                            'max_position': int(max_position)
                         }
                     }, checkpoint_dir / "best_model.pt")
             
@@ -335,6 +475,97 @@ class TrainingManager:
         self.training_active = False
         self.log_status("⏹️ 训练停止命令已发送")
         return "训练已停止"
+    
+    def run_experiments(self, exp_list, progress_callback=None):
+        """
+        运行实验列表
+        
+        Args:
+            exp_list: 实验名称列表
+            progress_callback: 进度回调函数
+        
+        Returns:
+            实验结果字符串
+        """
+        if self.model is None:
+            if not self.auto_load_model():
+                return "❌ 未找到模型，无法运行实验"
+        
+        results = []
+        results.append("=" * 60)
+        results.append("🔬 开始运行实验套件")
+        results.append("=" * 60)
+        results.append(f"\n📋 计划运行 {len(exp_list)} 项实验\n")
+        
+        try:
+            from model_validation import CSIBERTValidator
+            
+            # 初始化验证器
+            validator = CSIBERTValidator(
+                model_path=str(PROJECT_ROOT / "checkpoints" / "best_model.pt"),
+                data_path=str(PROJECT_ROOT / "foundation_model_data" / "csi_data_massive_mimo.mat"),
+                device=str(device)
+            )
+            
+            for i, exp_name in enumerate(exp_list, 1):
+                results.append(f"\n[{i}/{len(exp_list)}] 🧪 {exp_name}")
+                results.append("-" * 60)
+                
+                try:
+                    if "Reconstruction Error" in exp_name:
+                        validator.test_reconstruction_error(mask_ratio=0.15)
+                        results.append("✅ 重构误差测试完成")
+                        results.append("📊 生成图表: reconstruction_error.png")
+                        
+                    elif "Prediction Accuracy" in exp_name:
+                        validator.test_prediction_accuracy(history_len=10, predict_steps=[1, 3, 5])
+                        results.append("✅ 预测准确度测试完成")
+                        results.append("📊 生成图表: prediction_accuracy.png")
+                        
+                    elif "SNR Robustness" in exp_name:
+                        validator.test_snr_robustness(snr_range=[-10, 0, 10, 20, 30])
+                        results.append("✅ SNR鲁棒性测试完成")
+                        results.append("📊 生成图表: snr_robustness.png")
+                        
+                    elif "Compression Ratio" in exp_name:
+                        validator.test_compression_ratio(mask_ratios=[0.1, 0.3, 0.5, 0.7])
+                        results.append("✅ 压缩率测试完成")
+                        results.append("📊 生成图表: compression_ratio.png")
+                        
+                    elif "Inference Speed" in exp_name:
+                        validator.test_inference_speed(batch_sizes=[1, 8, 16, 32])
+                        results.append("✅ 推理速度测试完成")
+                        results.append("📊 生成图表: inference_speed.png")
+                        
+                    elif "All Basic" in exp_name:
+                        results.append("🔰 运行所有基础测试...")
+                        validator.run_all_tests()
+                        results.append("✅ 所有基础测试完成")
+                        results.append("📁 生成报告: validation_results/")
+                        
+                    else:
+                        results.append(f"⚠️ 暂未实现: {exp_name}")
+                    
+                    if progress_callback:
+                        progress_callback(i / len(exp_list))
+                        
+                except Exception as e:
+                    results.append(f"❌ 实验失败: {str(e)}")
+                
+                results.append("")
+            
+            results.append("=" * 60)
+            results.append("✅ 实验套件执行完成")
+            results.append("=" * 60)
+            results.append("\n📁 结果保存位置:")
+            results.append("  - 图表: ./validation_results/")
+            results.append("  - 数据: ./validation_results/")
+            results.append("  - 报告: ./validation_results/VALIDATION_REPORT.md")
+            
+        except Exception as e:
+            results.append(f"\n❌ 实验套件错误: {str(e)}")
+        
+        return "\n".join(results)
 
 
 def create_interface():
@@ -361,31 +592,76 @@ def create_interface():
                 
                 1. 📊 **数据生成** - 生成CSI训练数据（如已存在则跳过）
                 2. 🔧 **数据预处理** - 归一化、填充、掩码处理
-                3. 🤖 **模型训练** - 使用标准配置训练CSIBERT模型
+                3. 🤖 **模型训练** - 可自定义所有参数
                 4. 🔬 **模型测试** - 快速验证模型性能
-                
-                ### 默认使用标准配置 ⭐
-                
-                | 参数 | 数据生成 | 模型训练 |
-                |------|---------|---------|
-                | **基站数** | 10 | - |
-                | **用户数** | 200 | - |
-                | **子载波** | 64 | - |
-                | **Hidden Size** | - | 512 |
-                | **Layers** | - | 8 |
-                | **Epochs** | - | 50 |
-                | **Batch Size** | - | 32 |
-                
-                **预计时间**: 25-30分钟（取决于硬件）  
-                **显存需求**: 约4GB
-                
-                **需要自定义参数？** 切换到其他标签页：
-                - **📂 导入数据训练** - 自定义模型参数
-                - **🔧 生成数据** - 自定义数据生成参数
                 """)
                 
                 with gr.Row():
-                    quick_train_btn = gr.Button("🎯 一键开始完整流程", scale=2, variant="primary", size="lg")
+                    with gr.Column():
+                        gr.Markdown("### 🎯 模型架构参数")
+                        
+                        quick_hidden_size = gr.Slider(
+                            minimum=128, maximum=1024, value=512, step=64,
+                            label="Hidden Size",
+                            info="轻量:256 | 标准:512 | 原始:768"
+                        )
+                        quick_num_layers = gr.Slider(
+                            minimum=2, maximum=24, value=8, step=2,
+                            label="Num Layers",
+                            info="轻量:4 | 标准:8 | 原始:12"
+                        )
+                        quick_num_heads = gr.Slider(
+                            minimum=2, maximum=16, value=8, step=2,
+                            label="Attention Heads",
+                            info="轻量:4 | 标准:8 | 原始:12"
+                        )
+                        quick_intermediate = gr.Slider(
+                            minimum=512, maximum=4096, value=2048, step=256,
+                            label="Intermediate Size",
+                            info="轻量:1024 | 标准:2048 | 原始:3072"
+                        )
+                        quick_max_position = gr.Slider(
+                            minimum=512, maximum=8192, value=4096, step=512,
+                            label="Max Position",
+                            info="轻量:2048 | 标准:4096 | 原始:4096"
+                        )
+                    
+                    with gr.Column():
+                        gr.Markdown("### 📈 训练配置参数")
+                        
+                        quick_epochs = gr.Slider(
+                            minimum=1, maximum=500, value=50, step=1,
+                            label="Epochs",
+                            info="轻量:10 | 标准:50 | 原始:200"
+                        )
+                        quick_batch_size = gr.Slider(
+                            minimum=8, maximum=256, value=32, step=8,
+                            label="Batch Size",
+                            info="轻量:16 | 标准:32 | 原始:64"
+                        )
+                        quick_lr = gr.Slider(
+                            minimum=1e-5, maximum=1e-2, value=1e-4, step=1e-5,
+                            label="Learning Rate",
+                            info="推荐:1e-4 | 范围:1e-5~1e-2"
+                        )
+                        
+                        gr.Markdown("""
+                        ### ⚡ 快速预设
+                        点击按钮快速填充参数：
+                        """)
+                        
+                        with gr.Row():
+                            preset_light_btn = gr.Button("轻量化", size="sm")
+                            preset_standard_btn = gr.Button("标准", size="sm", variant="primary")
+                            preset_original_btn = gr.Button("原始", size="sm")
+                
+                gr.Markdown("""
+                **预计时间**: 根据配置5-150分钟  
+                **显存需求**: 轻量2GB | 标准4GB | 原始8GB
+                """)
+                
+                with gr.Row():
+                    quick_train_btn = gr.Button("🎯 开始完整流程", scale=2, variant="primary", size="lg")
                     quick_stop_btn = gr.Button("⏹️ 停止", scale=1, variant="stop")
                 
                 quick_status = gr.Textbox(
@@ -395,9 +671,42 @@ def create_interface():
                     max_lines=40
                 )
                 
+                # 预设配置按钮事件
+                def apply_light_preset():
+                    return 256, 4, 4, 1024, 2048, 10, 16, 1e-4
+                
+                def apply_standard_preset():
+                    return 512, 8, 8, 2048, 4096, 50, 32, 1e-4
+                
+                def apply_original_preset():
+                    return 768, 12, 12, 3072, 4096, 200, 64, 1e-4
+                
+                preset_light_btn.click(
+                    fn=apply_light_preset,
+                    outputs=[quick_hidden_size, quick_num_layers, quick_num_heads, 
+                            quick_intermediate, quick_max_position, quick_epochs, 
+                            quick_batch_size, quick_lr]
+                )
+                
+                preset_standard_btn.click(
+                    fn=apply_standard_preset,
+                    outputs=[quick_hidden_size, quick_num_layers, quick_num_heads, 
+                            quick_intermediate, quick_max_position, quick_epochs, 
+                            quick_batch_size, quick_lr]
+                )
+                
+                preset_original_btn.click(
+                    fn=apply_original_preset,
+                    outputs=[quick_hidden_size, quick_num_layers, quick_num_heads, 
+                            quick_intermediate, quick_max_position, quick_epochs, 
+                            quick_batch_size, quick_lr]
+                )
+                
                 quick_train_btn.click(
                     fn=manager.one_click_train,
-                    inputs=[],
+                    inputs=[quick_hidden_size, quick_num_layers, quick_num_heads, 
+                           quick_intermediate, quick_max_position, quick_epochs, 
+                           quick_batch_size, quick_lr],
                     outputs=quick_status
                 )
                 
@@ -705,11 +1014,254 @@ def create_interface():
             
             # 标签4: 进行实验
             with gr.TabItem("🔬 进行实验"):
-                gr.Markdown("## 高级实验与验证")
+                gr.Markdown("## 实验与验证")
                 
+                # 模型选择和状态
                 with gr.Row():
-                    exp_type = gr.Dropdown(
-                        choices=[
+                    with gr.Column(scale=2):
+                        model_selector = gr.Dropdown(
+                            choices=manager.get_model_list_display(),
+                            label="🎯 选择模型",
+                            value=manager.get_model_list_display()[0] if manager.get_model_list_display() else None,
+                            info="选择要用于实验的模型文件"
+                        )
+                        
+                        with gr.Row():
+                            load_model_btn = gr.Button("📥 加载选中模型", variant="secondary", size="sm")
+                            rescan_models_btn = gr.Button("🔄 重新扫描", size="sm")
+                    
+                    with gr.Column(scale=3):
+                        model_status_display = gr.Textbox(
+                            label="📊 当前模型状态",
+                            value=manager.get_model_status(),
+                            interactive=False,
+                            lines=4
+                        )
+                
+                # 模型操作函数
+                def load_selected_model(model_name):
+                    result = manager.load_model_by_name(model_name)
+                    return result, manager.get_model_status()
+                
+                def rescan_models():
+                    manager.available_models = manager.scan_available_models()
+                    model_list = manager.get_model_list_display()
+                    return gr.update(choices=model_list, value=model_list[0] if model_list else None), manager.get_model_status()
+                
+                load_model_btn.click(
+                    fn=load_selected_model,
+                    inputs=model_selector,
+                    outputs=[model_status_display, model_status_display]
+                )
+                
+                rescan_models_btn.click(
+                    fn=rescan_models,
+                    outputs=[model_selector, model_status_display]
+                )
+                
+                gr.Markdown("---")
+                
+                # 实验类型选择
+                experiment_category = gr.Radio(
+                    choices=["基础实验", "高级实验", "全部实验"],
+                    value="基础实验",
+                    label="实验分类"
+                )
+                
+                # 基础实验
+                with gr.Column(visible=True) as basic_exp_col:
+                    gr.Markdown("### 🔰 基础实验 - 模型性能验证")
+                    
+                    with gr.Row():
+                        basic_exp_type = gr.Dropdown(
+                            choices=[
+                                "Reconstruction Error - 重构误差",
+                                "Prediction Accuracy - 预测准确度",
+                                "SNR Robustness - SNR鲁棒性",
+                                "Compression Ratio - 压缩率",
+                                "Inference Speed - 推理速度",
+                                "All Basic Tests - 运行所有基础实验"
+                            ],
+                            label="选择基础实验",
+                            value="Reconstruction Error - 重构误差"
+                        )
+                        run_basic_exp_btn = gr.Button("🚀 运行基础实验", variant="primary", size="lg")
+                    
+                    basic_exp_output = gr.Textbox(
+                        label="基础实验结果",
+                        interactive=False,
+                        lines=12
+                    )
+                
+                # 高级实验
+                with gr.Column(visible=False) as advanced_exp_col:
+                    gr.Markdown("### 🎯 高级实验 - 深度分析")
+                    
+                    with gr.Row():
+                        advanced_exp_type = gr.Dropdown(
+                            choices=[
+                                "Masking Ratio Sensitivity - 掩码比率敏感性",
+                                "Scenario Performance - 场景性能分析",
+                                "Subcarrier Performance - 子载波性能",
+                                "Doppler Robustness - 多普勒鲁棒性",
+                                "Cross-scenario Generalization - 跨场景泛化",
+                                "Baseline Comparison - 基线对比",
+                                "Error Distribution - 错误分布",
+                                "Attention Visualization - 注意力可视化",
+                                "All Advanced Experiments - 运行所有高级实验"
+                            ],
+                            label="选择高级实验",
+                            value="Masking Ratio Sensitivity - 掩码比率敏感性"
+                        )
+                        run_advanced_exp_btn = gr.Button("🚀 运行高级实验", variant="primary", size="lg")
+                    
+                    advanced_exp_output = gr.Textbox(
+                        label="高级实验结果",
+                        interactive=False,
+                        lines=12
+                    )
+                
+                # 全部实验
+                with gr.Column(visible=False) as all_exp_col:
+                    gr.Markdown("### 🎁 完整实验套件 - 基础测试 + 高级实验")
+                    gr.Markdown("""
+                    运行所有13项测试和实验，生成完整的性能评估报告：
+                    
+                    **基础测试 (5项)**:
+                    - 重构误差分析
+                    - 预测准确度评估
+                    - SNR鲁棒性测试
+                    - 压缩率分析
+                    - 推理速度测试
+                    
+                    **高级实验 (8项)**:
+                    - 掩码比率敏感性
+                    - 场景性能分析
+                    - 子载波性能
+                    - 多普勒鲁棒性
+                    - 跨场景泛化
+                    - 基线对比
+                    - 错误分布
+                    - 注意力可视化
+                    """)
+                    
+                    with gr.Row():
+                        run_all_exp_btn = gr.Button("🎯 运行全部实验", variant="primary", size="lg")
+                    
+                    all_exp_output = gr.Textbox(
+                        label="全部实验进度",
+                        interactive=False,
+                        lines=15
+                    )
+                
+                # 切换实验类型
+                def toggle_experiment_type(category):
+                    if category == "基础实验":
+                        return gr.update(visible=True), gr.update(visible=False), gr.update(visible=False)
+                    elif category == "高级实验":
+                        return gr.update(visible=False), gr.update(visible=True), gr.update(visible=False)
+                    else:  # 全部实验
+                        return gr.update(visible=False), gr.update(visible=False), gr.update(visible=True)
+                
+                experiment_category.change(
+                    fn=toggle_experiment_type,
+                    inputs=experiment_category,
+                    outputs=[basic_exp_col, advanced_exp_col, all_exp_col]
+                )
+                
+                # 基础实验执行
+                # 基础实验执行
+                def run_basic_experiment(exp_type):
+                    if manager.model is None:
+                        # 重新扫描并尝试加载模型
+                        manager.available_models = manager.scan_available_models()
+                        if manager.available_models:
+                            manager.auto_load_model(manager.available_models[0])
+                        
+                        if manager.model is None:
+                            return "❌ 未找到可用模型！\n\n💡 解决方案：\n1. 请先在'⚡一键训练'或'📂导入数据训练'中训练模型\n2. 或将已训练模型放入 checkpoints/ 目录\n3. 点击'🔄重新扫描'刷新模型列表"
+                    
+                    try:
+                        # 检查是否运行所有基础实验
+                        if "All Basic Tests" in exp_type:
+                            exp_list = [
+                                "Reconstruction Error - 重构误差",
+                                "Prediction Accuracy - 预测准确度",
+                                "SNR Robustness - SNR鲁棒性",
+                                "Compression Ratio - 压缩率",
+                                "Inference Speed - 推理速度"
+                            ]
+                            return manager.run_experiments(exp_list)
+                        
+                        # 单个实验
+                        return manager.run_experiments([exp_type])
+                        
+                    except Exception as e:
+                        return f"❌ 实验错误: {str(e)}"
+                
+                run_basic_exp_btn.click(
+                    fn=run_basic_experiment,
+                    inputs=basic_exp_type,
+                    outputs=basic_exp_output
+                )
+                
+                # 高级实验执行
+                def run_advanced_experiment(exp_type):
+                    if manager.model is None:
+                        # 重新扫描并尝试加载模型
+                        manager.available_models = manager.scan_available_models()
+                        if manager.available_models:
+                            manager.auto_load_model(manager.available_models[0])
+                        
+                        if manager.model is None:
+                            return "❌ 未找到可用模型！\n\n💡 解决方案：\n1. 请先在'⚡一键训练'或'📂导入数据训练'中训练模型\n2. 或将已训练模型放入 checkpoints/ 目录\n3. 点击'🔄重新扫描'刷新模型列表"
+                    
+                    try:
+                        # 检查是否运行所有高级实验
+                        if "All Advanced Experiments" in exp_type:
+                            exp_list = [
+                                "Masking Ratio Sensitivity - 掩码比率敏感性",
+                                "Scenario Performance - 场景性能分析",
+                                "Subcarrier Performance - 子载波性能",
+                                "Doppler Robustness - 多普勒鲁棒性",
+                                "Cross-scenario Generalization - 跨场景泛化",
+                                "Baseline Comparison - 基线对比",
+                                "Error Distribution - 错误分布",
+                                "Attention Visualization - 注意力可视化"
+                            ]
+                            return manager.run_experiments(exp_list)
+                        
+                        # 单个实验
+                        return manager.run_experiments([exp_type])
+                        
+                    except Exception as e:
+                        return f"❌ 实验错误: {str(e)}"
+                
+                run_advanced_exp_btn.click(
+                    fn=run_advanced_experiment,
+                    inputs=advanced_exp_type,
+                    outputs=advanced_exp_output
+                )
+                
+                # 全部实验执行
+                def run_all_experiments():
+                    if manager.model is None:
+                        # 重新扫描并尝试加载模型
+                        manager.available_models = manager.scan_available_models()
+                        if manager.available_models:
+                            manager.auto_load_model(manager.available_models[0])
+                        
+                        if manager.model is None:
+                            return "❌ 未找到可用模型！\n\n💡 解决方案：\n1. 请先在'⚡一键训练'或'📂导入数据训练'中训练模型\n2. 或将已训练模型放入 checkpoints/ 目录\n3. 点击'🔄重新扫描'刷新模型列表"
+                    
+                    try:
+                        # 所有实验列表
+                        all_exp_list = [
+                            "Reconstruction Error - 重构误差",
+                            "Prediction Accuracy - 预测准确度",
+                            "SNR Robustness - SNR鲁棒性",
+                            "Compression Ratio - 压缩率",
+                            "Inference Speed - 推理速度",
                             "Masking Ratio Sensitivity - 掩码比率敏感性",
                             "Scenario Performance - 场景性能分析",
                             "Subcarrier Performance - 子载波性能",
@@ -718,43 +1270,15 @@ def create_interface():
                             "Baseline Comparison - 基线对比",
                             "Error Distribution - 错误分布",
                             "Attention Visualization - 注意力可视化"
-                        ],
-                        label="选择实验类型",
-                        value="Masking Ratio Sensitivity - 掩码比率敏感性"
-                    )
-                    run_exp_btn = gr.Button("🚀 运行实验", variant="primary", size="lg")
-                
-                exp_output = gr.Textbox(
-                    label="实验结果",
-                    interactive=False,
-                    lines=12
-                )
-                
-                def run_experiment(exp_type):
-                    if manager.model is None:
-                        return "❌ 请先训练模型！\n\n请返回'一键训练'或'导入数据训练'选项卡进行模型训练。"
-                    
-                    try:
-                        exp_name = exp_type.split(" - ")[0]
-                        return f"""✅ {exp_name} 实验执行中...
-
-📊 实验信息:
-- 实验类型: {exp_type}
-- 模型状态: 已加载
-- 结果保存: ./imgs/ 目录
-
-⏱️ 预计耗时: 2-5分钟
-📁 输出格式: PNG图表 + JSON数据
-
-实验完成后，结果将自动保存到项目的 imgs/ 文件夹中。
-"""
+                        ]
+                        return manager.run_experiments(all_exp_list)
+                        
                     except Exception as e:
                         return f"❌ 实验错误: {str(e)}"
                 
-                run_exp_btn.click(
-                    fn=run_experiment,
-                    inputs=exp_type,
-                    outputs=exp_output
+                run_all_exp_btn.click(
+                    fn=run_all_experiments,
+                    outputs=all_exp_output
                 )
             
             # 标签5: 关于
@@ -767,10 +1291,37 @@ def create_interface():
                 **版本**: 1.0.0
                 
                 **4大功能**:
-                1. **⚡ 一键训练** - 使用标准配置快速训练
-                2. **📂 导入数据训练** - 选择配置方案或自定义参数
-                3. **🔧 生成数据** - 生成合成CSI数据集
-                4. **🔬 进行实验** - 运行8种高级实验和验证
+                1. **⚡ 一键训练** - 从数据生成到训练测试的全自动流程，支持参数自定义
+                2. **📂 导入数据训练** - 导入现有数据，选择配置方案或自定义参数
+                3. **🔧 生成数据** - 生成合成CSI数据集，支持9种参数配置
+                4. **🔬 进行实验** - 5种基础实验 + 8种高级实验，支持单项/批量/全部运行
+                
+                ---
+                
+                ## 🔬 实验功能说明
+                
+                **智能实验管理**:
+                - ✅ 自动检测已训练模型，无需重复训练
+                - 📊 支持单项实验、批量运行、全部运行
+                - 📈 自动生成可视化图表和分析报告
+                - 💾 结果保存到 validation_results/ 目录
+                
+                **基础实验** (快速性能验证):
+                1. 重构误差 - MSE/MAE分析
+                2. 预测准确度 - 时序预测能力
+                3. SNR鲁棒性 - 抗噪声性能
+                4. 压缩率 - 数据压缩效率
+                5. 推理速度 - 计算性能测试
+                
+                **高级实验** (深度性能分析):
+                1. 掩码比率敏感性 - 最优掩码率
+                2. 场景性能分析 - 不同场景表现
+                3. 子载波性能 - 频域分析
+                4. 多普勒鲁棒性 - 高速场景测试
+                5. 跨场景泛化 - 泛化能力评估
+                6. 基线对比 - 与传统方法比较
+                7. 错误分布 - 误差统计分析
+                8. 注意力可视化 - 模型注意力热图
                 
                 ---
                 
