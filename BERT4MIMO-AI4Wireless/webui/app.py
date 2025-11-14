@@ -170,11 +170,17 @@ def create_interface():
                 gr.Markdown("## 快速启动 - 使用预设配置")
                 
                 gr.Markdown("""
-                此选项使用最优预设参数进行训练，适合首次使用。
-                训练将使用以下配置：
-                - **Epochs**: 50
-                - **Batch Size**: 32
-                - **Learning Rate**: 0.0001
+                此选项使用**标准配置**进行训练，适合首次使用。
+                
+                ### 当前使用的参数
+                
+                | 参数 | 标准值 | 轻量化 | 原始值 |
+                |------|-------|-------|-------|
+                | **Epochs** | **50** | 10 | 200 |
+                | **Batch Size** | **32** | 16 | 64 |
+                | **Learning Rate** | **1e-4** | 1e-4 | 1e-4 |
+                
+                如需自定义参数，请切换到**导入数据训练**标签页。
                 """)
                 
                 with gr.Row():
@@ -205,17 +211,52 @@ def create_interface():
                 
                 with gr.Row():
                     with gr.Column():
+                        # 预设配置选择
+                        preset = gr.Radio(
+                            choices=["轻量化配置", "标准配置", "原始配置"],
+                            value="标准配置",
+                            label="预设配置",
+                            info="快速选择推荐配置"
+                        )
+                    
+                    with gr.Column():
+                        gr.Markdown("""
+                        ### 预设配置说明
+                        
+                        **轻量化**: 快速测试，最少计算
+                        - Epochs: 10
+                        - Batch Size: 16
+                        - Learning Rate: 1e-4
+                        
+                        **标准**: 推荐使用，平衡配置
+                        - Epochs: 50
+                        - Batch Size: 32
+                        - Learning Rate: 1e-4
+                        
+                        **原始**: 完整训练，最好效果
+                        - Epochs: 200
+                        - Batch Size: 64
+                        - Learning Rate: 1e-4
+                        """)
+                
+                gr.Markdown("### 自定义参数")
+                
+                with gr.Row():
+                    with gr.Column():
                         epochs = gr.Slider(
-                            minimum=1, maximum=200, value=50, step=1,
-                            label="训练轮数 (Epochs)"
+                            minimum=1, maximum=500, value=50, step=1,
+                            label="训练轮数 (Epochs)",
+                            info="原始值: 200 | 范围: 1-500"
                         )
                         batch_size = gr.Slider(
-                            minimum=8, maximum=128, value=32, step=8,
-                            label="批大小 (Batch Size)"
+                            minimum=8, maximum=256, value=32, step=8,
+                            label="批大小 (Batch Size)",
+                            info="原始值: 64 | 范围: 8-256"
                         )
                         learning_rate = gr.Slider(
                             minimum=1e-5, maximum=1e-2, value=1e-4, step=1e-5,
-                            label="学习率 (Learning Rate)"
+                            label="学习率 (Learning Rate)",
+                            info="原始值: 1e-4 | 范围: 1e-5 ~ 1e-2"
                         )
                     
                     with gr.Column():
@@ -231,10 +272,7 @@ def create_interface():
                         - **维度**: (样本数, 天线数, 子载波数, 2)
                         - **示例**: (1000, 32, 64, 2)
                         
-                        ### 参数说明
-                        - **Epochs**: 训练轮数
-                        - **Batch Size**: 每批样本数
-                        - **Learning Rate**: 学习率
+                        如不上传文件，使用内置数据集
                         """)
                 
                 with gr.Row():
@@ -246,6 +284,21 @@ def create_interface():
                     interactive=False,
                     lines=15,
                     max_lines=30
+                )
+                
+                def apply_preset(preset_name):
+                    """根据预设返回参数"""
+                    presets = {
+                        "轻量化配置": (10, 16, 1e-4),
+                        "标准配置": (50, 32, 1e-4),
+                        "原始配置": (200, 64, 1e-4)
+                    }
+                    return presets.get(preset_name, (50, 32, 1e-4))
+                
+                preset.change(
+                    fn=lambda p: apply_preset(p),
+                    inputs=preset,
+                    outputs=[epochs, batch_size, learning_rate]
                 )
                 
                 custom_train_btn.click(
