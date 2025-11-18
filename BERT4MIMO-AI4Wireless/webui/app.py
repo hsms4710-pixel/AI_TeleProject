@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 """
-CSIBERT WebUI - Gradio 界面
+CSIBERT WebUI - Gradio 可视化训练界面
 
-功能：
-- 模型训练
-- 数据生成
-- 实验运行
-- 结果可视化
+本模块提供友好的 Web 界面用于：
+- 一键训练 CSIBERT 模型
+- 实时查看训练进度和损失曲线
+- 加载和管理已保存的模型
+- 运行高级实验和可视化分析
+- 模型验证和性能评估
+
+使用方法:
+    python webui/app.py
+    
+然后在浏览器中打开 http://localhost:7860
 """
 
-import sys
 import os
+import sys
 import json
 import gradio as gr
 import numpy as np
@@ -22,11 +28,64 @@ import threading
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from train import (
-    load_csi_data, preprocess_csi_matrix, 
-    device, CSIBERT, torch, DataLoader, TensorDataset
-)
-from experiments_extended import AdvancedCSIBERTExperiments
+# 导入训练相关模块
+import torch
+from torch.utils.data import DataLoader, TensorDataset
+from model import CSIBERT
+
+# 检测设备
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+
+# 导入数据处理函数（从 train.py）
+def load_csi_data(file_path):
+    """加载 CSI 数据"""
+    from scipy.io import loadmat
+    mat_data = loadmat(file_path)
+    csi_data = mat_data['CSI_data']
+    return csi_data
+
+def preprocess_csi_matrix(csi_matrix):
+    """
+    预处理 CSI 矩阵
+    
+    Args:
+        csi_matrix: CSI 数据数组
+        
+    Returns:
+        processed_data_list: 预处理后的数据列表（变长序列）
+    """
+    num_samples = csi_matrix.shape[0]
+    processed_data_list = []
+    
+    for i in range(num_samples):
+        sample = csi_matrix[i]
+        
+        # 处理复数数据
+        if np.iscomplexobj(sample):
+            real_part = np.real(sample)
+            imag_part = np.imag(sample)
+            sample = np.stack([real_part, imag_part], axis=-1)
+        else:
+            if sample.ndim == 2:
+                sample = np.expand_dims(sample, axis=-1)
+        
+        # 展平为 2D: (time_steps, features)
+        if sample.ndim == 3:
+            sample = sample.reshape(sample.shape[0], -1)
+        
+        # 归一化
+        mean = np.mean(sample, axis=0, keepdims=True)
+        std = np.std(sample, axis=0, keepdims=True) + 1e-8
+        sample = (sample - mean) / std
+        
+        processed_data_list.append(sample.astype(np.float32))
+    
+    return processed_data_list
 
 
 class TrainingManager:
@@ -489,81 +548,141 @@ class TrainingManager:
         """
         if self.model is None:
             if not self.auto_load_model():
-                return " 未找到模型，无法运行实验"
+                return "❌ 未找到模型，无法运行实验"
         
         results = []
         results.append("=" * 60)
-        results.append(" 开始运行实验套件")
+        results.append("🧪 开始运行实验套件")
         results.append("=" * 60)
-        results.append(f"\n 计划运行 {len(exp_list)} 项实验\n")
+        results.append(f"\n📋 计划运行 {len(exp_list)} 项实验\n")
         
         try:
-            from model_validation import CSIBERTValidator
+            # 检查是否有测试数据
+            test_data_path = PROJECT_ROOT / "validation_data" / "test_data.npy"
+            if not test_data_path.exists():
+                results.append("⚠️  未找到测试数据，请先运行 train.py 生成测试数据")
+                return "\n".join(results)
             
-            # 初始化验证器
-            validator = CSIBERTValidator(
-                model_path=str(PROJECT_ROOT / "checkpoints" / "best_model.pt"),
-                data_path=str(PROJECT_ROOT / "foundation_model_data" / "csi_data_massive_mimo.mat"),
-                device=str(device)
-            )
+            # 加载测试数据
+            test_data = np.load(test_data_path, allow_pickle=True)
+            results.append(f"✓ 已加载测试数据: {len(test_data)} 个样本\n")
             
-            for i, exp_name in enumerate(exp_list, 1):
-                results.append(f"\n[{i}/{len(exp_list)}] 🧪 {exp_name}")
+            # 判断实验类型
+            has_basic_tests = any("Reconstruction" in exp or "Prediction" in exp or 
+                                 "SNR" in exp or "Compression" in exp or 
+                                 "Inference" in exp or "All Basic" in exp 
+                                 for exp in exp_list)
+            
+            has_advanced_tests = any("Masking Ratio" in exp or "Error Distribution" in exp or
+                                    "Prediction Horizon" in exp or "Baseline" in exp or
+                                    "Attention" in exp or "All Advanced" in exp
+                                    for exp in exp_list)
+            
+            # 运行基础验证实验
+            if has_basic_tests:
+                results.append("📊 基础验证实验")
                 results.append("-" * 60)
                 
-                try:
+                from model_validation import CSIBERTValidator
+                validator = CSIBERTValidator(
+                    model_path=str(PROJECT_ROOT / "checkpoints" / "best_model.pt"),
+                    device=str(device)
+                )
+                
+                for i, exp_name in enumerate(exp_list, 1):
                     if "Reconstruction Error" in exp_name:
+                        results.append(f"\n[{i}] 🔍 重构误差测试")
                         validator.test_reconstruction_error(mask_ratio=0.15)
-                        results.append(" 重构误差测试完成")
-                        results.append(" 生成图表: reconstruction_error.png")
+                        results.append("  ✓ 完成 - 生成图表: reconstruction_error.png")
                         
                     elif "Prediction Accuracy" in exp_name:
-                        validator.test_prediction_accuracy(history_len=10, predict_steps=[1, 3, 5])
-                        results.append(" 预测准确度测试完成")
-                        results.append(" 生成图表: prediction_accuracy.png")
+                        results.append(f"\n[{i}] 📈 预测准确度测试")
+                        validator.test_prediction_accuracy(history_len=10, predict_steps=[1, 3, 5, 10])
+                        results.append("  ✓ 完成 - 生成图表: prediction_accuracy.png")
                         
                     elif "SNR Robustness" in exp_name:
+                        results.append(f"\n[{i}] 📡 SNR鲁棒性测试")
                         validator.test_snr_robustness(snr_range=[-10, 0, 10, 20, 30])
-                        results.append(" SNR鲁棒性测试完成")
-                        results.append(" 生成图表: snr_robustness.png")
+                        results.append("  ✓ 完成 - 生成图表: snr_robustness.png")
                         
-                    elif "Compression Ratio" in exp_name:
-                        validator.test_compression_ratio(mask_ratios=[0.1, 0.3, 0.5, 0.7])
-                        results.append(" 压缩率测试完成")
-                        results.append(" 生成图表: compression_ratio.png")
+                    elif "Compression" in exp_name:
+                        results.append(f"\n[{i}] 🗜️ 压缩质量测试")
+                        validator.test_compression_ratio(compression_ratios=[10, 20, 30, 40, 50])
+                        results.append("  ✓ 完成 - 生成图表: compression_quality.png")
                         
                     elif "Inference Speed" in exp_name:
+                        results.append(f"\n[{i}] ⚡ 推理速度测试")
                         validator.test_inference_speed(batch_sizes=[1, 8, 16, 32])
-                        results.append(" 推理速度测试完成")
-                        results.append(" 生成图表: inference_speed.png")
+                        results.append("  ✓ 完成 - 生成图表: inference_speed.png")
                         
                     elif "All Basic" in exp_name:
-                        results.append("🔰 运行所有基础测试...")
+                        results.append(f"\n[{i}] 🔰 运行所有基础测试")
                         validator.run_all_tests()
-                        results.append(" 所有基础测试完成")
-                        results.append(" 生成报告: validation_results/")
-                        
-                    else:
-                        results.append(f" 暂未实现: {exp_name}")
+                        results.append("  ✓ 完成 - 生成完整报告: validation_results/")
                     
                     if progress_callback:
                         progress_callback(i / len(exp_list))
-                        
-                except Exception as e:
-                    results.append(f" 实验失败: {str(e)}")
-                
-                results.append("")
             
+            # 运行高级实验
+            if has_advanced_tests:
+                results.append("\n\n🔬 高级实验分析")
+                results.append("-" * 60)
+                
+                from experiments_extended import AdvancedCSIBERTExperiments
+                advanced_exp = AdvancedCSIBERTExperiments(
+                    model=self.model,
+                    test_data=test_data,
+                    device=device,
+                    output_dir=str(PROJECT_ROOT / "advanced_experiments")
+                )
+                
+                for i, exp_name in enumerate(exp_list, 1):
+                    if "Masking Ratio" in exp_name:
+                        results.append(f"\n[{i}] 🎭 掩码比率敏感性分析")
+                        advanced_exp.experiment_1_masking_ratio_sensitivity()
+                        results.append("  ✓ 完成 - 测试了15种掩码比率")
+                        
+                    elif "Error Distribution" in exp_name:
+                        results.append(f"\n[{i}] 📊 误差分布分析")
+                        advanced_exp.experiment_2_error_distribution()
+                        results.append("  ✓ 完成 - 生成误差统计报告")
+                        
+                    elif "Prediction Horizon" in exp_name:
+                        results.append(f"\n[{i}] 🔮 预测步长分析")
+                        advanced_exp.experiment_3_prediction_horizon()
+                        results.append("  ✓ 完成 - 测试了多个预测步长")
+                        
+                    elif "Baseline" in exp_name:
+                        results.append(f"\n[{i}] 📐 基线方法对比")
+                        advanced_exp.experiment_4_baseline_comparison()
+                        results.append("  ✓ 完成 - 对比了传统方法")
+                        
+                    elif "Attention" in exp_name:
+                        results.append(f"\n[{i}] 👁️ 注意力权重可视化")
+                        advanced_exp.experiment_5_attention_visualization(num_samples=3)
+                        results.append("  ✓ 完成 - 可视化了注意力热力图")
+                        
+                    elif "All Advanced" in exp_name:
+                        results.append(f"\n[{i}] 🚀 运行所有高级实验")
+                        advanced_exp.run_all_experiments()
+                        results.append("  ✓ 完成 - 生成完整高级实验报告")
+                    
+                    if progress_callback:
+                        progress_callback(i / len(exp_list))
+            
+            results.append("\n" + "=" * 60)
+            results.append("✅ 实验套件执行完成")
             results.append("=" * 60)
-            results.append(" 实验套件执行完成")
-            results.append("=" * 60)
-            results.append("\n 结果保存位置:")
-            results.append("  - 图表: ./validation_results/")
-            results.append("  - 数据: ./validation_results/")
-            results.append("  - 报告: ./validation_results/VALIDATION_REPORT.md")
+            results.append("\n📁 结果保存位置:")
+            if has_basic_tests:
+                results.append("  - 基础验证: ./validation_results/")
+            if has_advanced_tests:
+                results.append("  - 高级实验: ./advanced_experiments/")
             
         except Exception as e:
-            results.append(f"\n 实验套件错误: {str(e)}")
+            import traceback
+            results.append(f"\n❌ 实验套件错误: {str(e)}")
+            results.append(f"\n详细错误:\n{traceback.format_exc()}")
         
         return "\n".join(results)
 
@@ -1095,25 +1214,22 @@ def create_interface():
                 
                 # 高级实验
                 with gr.Column(visible=False) as advanced_exp_col:
-                    gr.Markdown("###  高级实验 - 深度分析")
+                    gr.Markdown("### 🔬 高级实验 - 深度分析")
                     
                     with gr.Row():
                         advanced_exp_type = gr.Dropdown(
                             choices=[
-                                "Masking Ratio Sensitivity - 掩码比率敏感性",
-                                "Scenario Performance - 场景性能分析",
-                                "Subcarrier Performance - 子载波性能",
-                                "Doppler Robustness - 多普勒鲁棒性",
-                                "Cross-scenario Generalization - 跨场景泛化",
-                                "Baseline Comparison - 基线对比",
-                                "Error Distribution - 错误分布",
-                                "Attention Visualization - 注意力可视化",
+                                "Masking Ratio Sensitivity - 掩码比率敏感性分析",
+                                "Error Distribution - 误差分布分析",
+                                "Prediction Horizon - 预测步长分析",
+                                "Baseline Comparison - 基线方法对比",
+                                "Attention Visualization - 注意力权重可视化",
                                 "All Advanced Experiments - 运行所有高级实验"
                             ],
                             label="选择高级实验",
-                            value="Masking Ratio Sensitivity - 掩码比率敏感性"
+                            value="Masking Ratio Sensitivity - 掩码比率敏感性分析"
                         )
-                        run_advanced_exp_btn = gr.Button(" 运行高级实验", variant="primary", size="lg")
+                        run_advanced_exp_btn = gr.Button("🔬 运行高级实验", variant="primary", size="lg")
                     
                     advanced_exp_output = gr.Textbox(
                         label="高级实验结果",
@@ -1123,26 +1239,23 @@ def create_interface():
                 
                 # 全部实验
                 with gr.Column(visible=False) as all_exp_col:
-                    gr.Markdown("###  完整实验套件 - 基础测试 + 高级实验")
+                    gr.Markdown("### 🚀 完整实验套件 - 基础测试 + 高级实验")
                     gr.Markdown("""
-                    运行所有13项测试和实验，生成完整的性能评估报告：
+                    运行所有10项测试和实验，生成完整的性能评估报告：
                     
                     **基础测试 (5项)**:
                     - 重构误差分析
                     - 预测准确度评估
                     - SNR鲁棒性测试
-                    - 压缩率分析
+                    - 压缩质量分析
                     - 推理速度测试
                     
-                    **高级实验 (8项)**:
-                    - 掩码比率敏感性
-                    - 场景性能分析
-                    - 子载波性能
-                    - 多普勒鲁棒性
-                    - 跨场景泛化
-                    - 基线对比
-                    - 错误分布
-                    - 注意力可视化
+                    **高级实验 (5项)**:
+                    - 掩码比率敏感性分析 (测试15种掩码比率)
+                    - 误差分布分析 (直方图、箱线图、Q-Q图)
+                    - 预测步长分析 (测试1-20步预测能力)
+                    - 基线方法对比 (零填充、均值填充)
+                    - 注意力权重可视化 (热力图)
                     """)
                     
                     with gr.Row():
@@ -1284,57 +1397,54 @@ def create_interface():
             # 标签5: 关于
             with gr.TabItem(" 关于"):
                 gr.Markdown("""
-                ##  CSIBERT 项目信息
+                ## 🚀 CSIBERT 项目信息
                 
                 **项目名称**: BERT4MIMO - AI for Wireless Communications
                 
-                **版本**: 1.0.0
+                **版本**: 2.0.0 (重构版)
                 
                 **4大功能**:
-                1. ** 一键训练** - 从数据生成到训练测试的全自动流程，支持参数自定义
-                2. ** 导入数据训练** - 导入现有数据，选择配置方案或自定义参数
-                3. ** 生成数据** - 生成合成CSI数据集，支持9种参数配置
-                4. ** 进行实验** - 5种基础实验 + 8种高级实验，支持单项/批量/全部运行
+                1. **🎯 一键训练** - 从数据生成到训练测试的全自动流程，支持参数自定义
+                2. **📥 导入数据训练** - 导入现有数据，选择配置方案或自定义参数
+                3. **🔧 生成数据** - 生成合成CSI数据集，支持9种参数配置
+                4. **🧪 进行实验** - 5种基础实验 + 5种高级实验，支持单项/批量/全部运行
                 
                 ---
                 
-                ##  实验功能说明
+                ## 🧪 实验功能说明
                 
                 **智能实验管理**:
-                -  自动检测已训练模型，无需重复训练
-                -  支持单项实验、批量运行、全部运行
-                -  自动生成可视化图表和分析报告
-                -  结果保存到 validation_results/ 目录
+                - ✓ 自动检测已训练模型，无需重复训练
+                - ✓ 支持单项实验、批量运行、全部运行
+                - ✓ 自动生成可视化图表和分析报告
+                - ✓ 结果保存到 validation_results/ 和 advanced_experiments/ 目录
                 
                 **基础实验** (快速性能验证):
-                1. 重构误差 - MSE/MAE分析
-                2. 预测准确度 - 时序预测能力
-                3. SNR鲁棒性 - 抗噪声性能
-                4. 压缩率 - 数据压缩效率
+                1. 重构误差 - MSE/NMSE/MAE分析
+                2. 预测准确度 - 时序预测能力 (1/3/5/10步)
+                3. SNR鲁棒性 - 抗噪声性能 (-10~30dB)
+                4. 压缩质量 - 数据压缩效率 (10x~50x)
                 5. 推理速度 - 计算性能测试
                 
                 **高级实验** (深度性能分析):
-                1. 掩码比率敏感性 - 最优掩码率
-                2. 场景性能分析 - 不同场景表现
-                3. 子载波性能 - 频域分析
-                4. 多普勒鲁棒性 - 高速场景测试
-                5. 跨场景泛化 - 泛化能力评估
-                6. 基线对比 - 与传统方法比较
-                7. 错误分布 - 误差统计分析
-                8. 注意力可视化 - 模型注意力热图
+                1. 掩码比率敏感性 - 测试15种掩码比率 (0-70%)
+                2. 误差分布分析 - 直方图、箱线图、Q-Q图
+                3. 预测步长分析 - 测试1-20步预测能力
+                4. 基线方法对比 - 与零填充、均值填充比较
+                5. 注意力权重可视化 - 模型注意力热力图
                 
                 ---
                 
-                ##  三级配置方案
+                ## ⚙️ 三级配置方案
                 
-                ### 方案1：轻量化配置 
+                ### 方案1：轻量化配置 ⚡
                 - **场景**: 快速体验、学习、原型验证
                 - **硬件**: 4GB 显存（入门级显卡）
                 - **模型**: Hidden=256, Layers=4, Heads=4
                 - **训练**: Epochs=10, Batch=16, 耗时≈5分钟
                 - **精度**: 85% | **速度**: 100 fps | **显存**: 2GB
                 
-                ### 方案2：标准配置 （推荐）
+                ### 方案2：标准配置 🎯（推荐）
                 - **场景**: 生产环境、应用开发、常规研究
                 - **硬件**: 4-8GB 显存（主流显卡）
                 - **模型**: Hidden=512, Layers=8, Heads=8

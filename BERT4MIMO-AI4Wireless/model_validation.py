@@ -33,17 +33,35 @@ warnings.filterwarnings('ignore')
 class CSIBERTValidator:
     """CSIBERT 模型验证器"""
     
-    def __init__(self, model_path, data_path, device=None):
+    def __init__(self, model_path, data_path=None, device=None):
         """
         初始化验证器
         
         Args:
             model_path: 模型检查点路径
-            data_path: CSI数据文件路径
+            data_path: CSI数据文件路径（可选，默认使用训练时保存的测试集 validation_data/test_data.npy）
             device: 计算设备 (cuda/cpu)
         """
         self.model_path = model_path
-        self.data_path = data_path
+        
+        # 设置数据路径，优先使用训练时保存的测试集
+        if data_path is None:
+            # 获取项目根目录
+            model_dir = os.path.dirname(os.path.abspath(__file__))
+            # 优先使用训练时保存的测试集（确保数据未参与训练）
+            test_data_path = os.path.join(model_dir, "validation_data", "test_data.npy")
+            if os.path.exists(test_data_path):
+                self.data_path = test_data_path
+                self.use_saved_test_set = True
+                print("📊 使用训练时保存的测试集（未参与训练的数据）")
+            else:
+                # 如果测试集不存在，回退到原始数据
+                self.data_path = os.path.join(model_dir, "foundation_model_data", "csi_data_massive_mimo.mat")
+                self.use_saved_test_set = False
+                print("⚠️  未找到保存的测试集，使用原始数据（可能包含训练数据）")
+        else:
+            self.data_path = data_path
+            self.use_saved_test_set = data_path.endswith('.npy')
         
         # 设置随机数种子以确保可重现性
         np.random.seed(42)
@@ -63,6 +81,12 @@ class CSIBERTValidator:
             self.device = torch.device(device)
         
         print(f"使用设备: {self.device}")
+        print(f"数据路径: {self.data_path}")
+        
+        # 创建结果输出目录（使用绝对路径，确保始终在项目根目录）
+        self.project_root = os.path.dirname(os.path.abspath(__file__))
+        self.results_dir = os.path.join(self.project_root, 'validation_results')
+        os.makedirs(self.results_dir, exist_ok=True)
         
         # 加载模型和数据
         self.model = self._load_model()
@@ -133,20 +157,70 @@ class CSIBERTValidator:
         print("加载数据...")
         print(f"{'='*60}")
         
-        cell_data = scipy.io.loadmat(self.data_path)['multi_cell_csi']
-        print(f"原始数据形状: {cell_data.shape}")
-        
         preprocessed_data = []
         sequence_lengths = []
         
-        # 遍历所有小区和用户
-        for cell_idx in range(cell_data.shape[0]):
-            for ue_idx in range(cell_data.shape[1]):
-                ue_data = cell_data[cell_idx, ue_idx]
-                for scenario in ue_data[0]:
-                    processed_csi = self._preprocess_csi_matrix(scenario)
+        # 判断数据源类型
+        if self.use_saved_test_set:
+            # 加载训练时保存的测试集（.npy 格式）
+            print(f"从测试集加载: {self.data_path}")
+            test_data = np.load(self.data_path, allow_pickle=True)
+            
+            # test_data 已经是预处理后的列表
+            if isinstance(test_data, np.ndarray) and test_data.dtype == object:
+                preprocessed_data = list(test_data)
+            else:
+                preprocessed_data = [test_data[i] for i in range(len(test_data))]
+            
+            sequence_lengths = [seq.shape[0] for seq in preprocessed_data]
+            print(f"测试集样本数: {len(preprocessed_data)}")
+            
+        else:
+            # 从原始 MATLAB 文件加载
+            print(f"从 MATLAB 文件加载: {self.data_path}")
+            mat_data = scipy.io.loadmat(self.data_path)
+            
+            # 尝试不同的数据键
+            if 'multi_cell_csi' in mat_data:
+                cell_data = mat_data['multi_cell_csi']
+            elif 'CSI_data' in mat_data:
+                cell_data = mat_data['CSI_data']
+            else:
+                # 打印所有可用的键
+                available_keys = [k for k in mat_data.keys() if not k.startswith('__')]
+                raise KeyError(f"找不到 CSI 数据。可用的键: {available_keys}")
+            
+            print(f"原始数据形状: {cell_data.shape}")
+            
+            # 处理不同的数据结构
+            if cell_data.ndim == 3:
+                # 简单的 3D 数组: (samples, time_steps, features)
+                print(f"检测到简单 3D 数组结构")
+                num_samples = min(cell_data.shape[0], 1000)  # 限制样本数量
+                for i in range(num_samples):
+                    sample = cell_data[i]
+                    processed_csi = self._preprocess_csi_matrix(sample)
                     preprocessed_data.append(processed_csi)
                     sequence_lengths.append(processed_csi.shape[0])
+            else:
+                # 复杂的嵌套结构
+                print(f"检测到嵌套数组结构")
+                # 遍历所有小区和用户
+                for cell_idx in range(min(cell_data.shape[0], 5)):  # 限制小区数
+                    for ue_idx in range(min(cell_data.shape[1], 20)):  # 限制用户数
+                        ue_data = cell_data[cell_idx, ue_idx]
+                        if isinstance(ue_data, np.ndarray) and ue_data.size > 0:
+                            # 尝试提取场景数据
+                            try:
+                                for scenario in ue_data[0]:
+                                    processed_csi = self._preprocess_csi_matrix(scenario)
+                                    preprocessed_data.append(processed_csi)
+                                    sequence_lengths.append(processed_csi.shape[0])
+                            except:
+                                # 如果提取失败，直接处理
+                                processed_csi = self._preprocess_csi_matrix(ue_data)
+                                preprocessed_data.append(processed_csi)
+                                sequence_lengths.append(processed_csi.shape[0])
         
         print(f"样本总数: {len(preprocessed_data)}")
         print(f"平均序列长度: {np.mean(sequence_lengths):.1f}")
@@ -525,7 +599,7 @@ class CSIBERTValidator:
         axes[2].grid(alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig('validation_results/error_distribution.png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.results_dir, 'error_distribution.png'), dpi=300, bbox_inches='tight')
         print("\n保存图表: validation_results/error_distribution.png")
         plt.close()
     
@@ -541,7 +615,7 @@ class CSIBERTValidator:
         plt.title('CSI Prediction Performance vs Steps', fontsize=14)
         plt.grid(alpha=0.3)
         plt.tight_layout()
-        plt.savefig('validation_results/prediction_vs_steps.png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.results_dir, 'prediction_vs_steps.png'), dpi=300, bbox_inches='tight')
         print("保存图表: validation_results/prediction_vs_steps.png")
         plt.close()
     
@@ -557,7 +631,7 @@ class CSIBERTValidator:
         plt.title('Model Robustness vs SNR', fontsize=14)
         plt.grid(alpha=0.3)
         plt.tight_layout()
-        plt.savefig('validation_results/snr_robustness.png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.results_dir, 'snr_robustness.png'), dpi=300, bbox_inches='tight')
         print("保存图表: validation_results/snr_robustness.png")
         plt.close()
     
@@ -586,7 +660,7 @@ class CSIBERTValidator:
         
         plt.title('Compression Rate vs Quality Trade-off', fontsize=14)
         fig.tight_layout()
-        plt.savefig('validation_results/compression_quality.png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.results_dir, 'compression_quality.png'), dpi=300, bbox_inches='tight')
         print("保存图表: validation_results/compression_quality.png")
         plt.close()
     
@@ -615,7 +689,7 @@ class CSIBERTValidator:
         ax2.grid(alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig('validation_results/inference_speed.png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.results_dir, 'inference_speed.png'), dpi=300, bbox_inches='tight')
         print("保存图表: validation_results/inference_speed.png")
         plt.close()
     
@@ -650,13 +724,12 @@ class CSIBERTValidator:
             'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
         }
         
-        # 保存JSON报告
-        os.makedirs('validation_results', exist_ok=True)
+        # 保存JSON报告（目录已在 __init__ 中创建）
         
         # 转换NumPy类型为可JSON序列化的格式
         report_converted = self._convert_numpy_types(report)
         
-        with open('validation_results/validation_report.json', 'w', encoding='utf-8') as f:
+        with open(os.path.join(self.results_dir, 'validation_report.json'), 'w', encoding='utf-8') as f:
             json.dump(report_converted, f, indent=2, ensure_ascii=False)
         
         print("\n 验证报告已保存: validation_results/validation_report.json")
@@ -751,7 +824,7 @@ class CSIBERTValidator:
 **报告生成器**: CSIBERT Validator v1.0
 """
         
-        with open('validation_results/VALIDATION_REPORT.md', 'w', encoding='utf-8') as f:
+        with open(os.path.join(self.results_dir, 'VALIDATION_REPORT.md'), 'w', encoding='utf-8') as f:
             f.write(md_content)
         
         print(" Markdown报告已保存: validation_results/VALIDATION_REPORT.md")

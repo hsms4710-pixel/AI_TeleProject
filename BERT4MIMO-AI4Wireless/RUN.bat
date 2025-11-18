@@ -1,76 +1,72 @@
 @echo off
+REM CSIBERT 命令行训练脚本
+REM 适合高级用户和自动化脚本调用
+REM 推荐使用 START.bat 启动 WebUI 进行可视化训练
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 echo.
 echo ============================================================
-echo        BERT4MIMO 项目启动
+echo        BERT4MIMO-AI4Wireless 训练脚本
 echo ============================================================
 echo.
 
-REM 检查虚拟环境
-echo 第1步/4: 检查虚拟环境...
+REM 检测Python环境
+echo [1/3] 检测Python环境...
 
 if exist "..\\.venv\\Scripts\\python.exe" (
-    echo    虚拟环境已存在
+    echo    ✓ 使用项目虚拟环境: ..\\.venv
     set "PYTHON_EXE=..\\.venv\\Scripts\\python.exe"
 ) else if exist ".venv\\Scripts\\python.exe" (
-    echo    虚拟环境已存在
+    echo    ✓ 使用本地虚拟环境: .venv
     set "PYTHON_EXE=.venv\\Scripts\\python.exe"
 ) else (
-    echo    虚拟环境不存在，正在创建...
-    python -m venv .venv
-    if errorlevel 1 (
-        echo [错误] 虚拟环境创建失败
-        pause
-        exit /b 1
-    )
-    set "PYTHON_EXE=.venv\\Scripts\\python.exe"
+    echo    ✓ 使用系统Python
+    set "PYTHON_EXE=python"
 )
 
 REM 检查依赖
 echo.
-echo 第2步/4: 检查依赖...
-
-"%PYTHON_EXE%" -c "import torch, transformers, gradio" >nul 2>&1
+echo [2/3] 检查依赖...
+"%PYTHON_EXE%" -c "import torch, transformers, sklearn" >nul 2>&1
 if errorlevel 1 (
-    echo    依赖不完整，正在安装...
-    echo    这可能需要几分钟，请耐心等待...
-    
-    "%PYTHON_EXE%" -m pip install --quiet --upgrade pip
-    "%PYTHON_EXE%" -m pip install --quiet torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-    "%PYTHON_EXE%" -m pip install --quiet -r requirements.txt
-    
-    if errorlevel 1 (
-        echo [错误] 依赖安装失败
-        pause
-        exit /b 1
-    )
-    echo    依赖安装完成
-) else (
-    echo    依赖已安装
-)
-
-REM 验证安装
-echo.
-echo 第3步/4: 验证安装...
-"%PYTHON_EXE%" -c "import torch; import transformers; import gradio; print('   所有关键依赖已安装')" 2>nul
-
-REM 启动WebUI
-echo.
-echo 第4步/4: 启动WebUI...
-echo.
-echo ============================================================
-echo 访问地址: http://127.0.0.1:7861
-echo 按 Ctrl+C 停止服务器
-echo ============================================================
-echo.
-
-"%PYTHON_EXE%" webui\app.py
-
-if errorlevel 1 (
-    echo.
-    echo [错误] WebUI启动失败
+    echo    ⚠ 依赖不完整，请先运行: pip install -r requirements.txt
+    echo    ⚠ 如果需要安装PyTorch，请访问: https://pytorch.org/
     pause
     exit /b 1
+) else (
+    echo    ✓ 依赖检查通过
 )
+
+REM 运行训练脚本
+echo.
+echo [3/3] 启动训练...
+echo ============================================================
+echo.
+
+"%PYTHON_EXE%" train.py ^
+    --hidden_size 256 ^
+    --num_hidden_layers 4 ^
+    --num_attention_heads 4 ^
+    --learning_rate 1e-4 ^
+    --batch_size 16 ^
+    --num_epochs 50
+
+echo.
+echo ============================================================
+if errorlevel 1 (
+    echo ❌ 训练过程中出现错误
+) else (
+    echo ✅ 训练完成
+    echo.
+    echo 生成的文件:
+    echo   - checkpoints/best_model.pt       (最佳模型)
+    echo   - training_validation_loss.png    (训练曲线)
+    echo   - validation_data/test_data.npy   (测试数据)
+    echo.
+    echo 下一步:
+    echo   运行 model_validation.py 进行模型验证
+)
+echo ============================================================
+
+pause
