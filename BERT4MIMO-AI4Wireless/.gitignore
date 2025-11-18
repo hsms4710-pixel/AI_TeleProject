@@ -57,3 +57,6 @@ foundation_model_data/*.mat
 # Keep metadata JSON in repo (do not ignore *.json in data/generated)
 
 validation_data/test_data.npy
+
+# GitHub specific files
+.github/
